@@ -48,3 +48,42 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update GitOps Repository
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+          # Holt die kurze Commit-SHA (z.B. sha-a1b2c3d) aus den Meta-Outputs
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # GitOps Repo klonen
+          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/chrismich-k/ktest-argocd.git gitops
+          cd gitops
+
+          # Voller Image-Pfad ohne Tag (wichtig für Kustomize)
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          # 1. Dev-Overlay patchen
+          cd apps/ktest-app/overlays/dev01
+          kustomize edit set image ${FULL_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}
+
+          # 2. Staging-Overlay patchen (falls Staging zeitgleich mitrollen soll)
+          cd ../staging
+          kustomize edit set image ${FULL_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}
+
+          # Zurück ins Root-Verzeichnis des Repos für den Git-Commit
+          cd ../../../..
+
+          # Prüfen ob sich überhaupt was geändert hat (verhindert leere Commits)
+          if ! git diff --quiet; then
+            git add .
+            git commit -m "chore(gitops): update ktest-app image to ${IMAGE_TAG} [skip ci]"
+            git push origin main
+          else
+            echo "Keine Änderungen am Image-Tag festgestellt."
+          fi
