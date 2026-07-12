@@ -72,9 +72,9 @@ jobs:
           cd apps/ktest-app/overlays/dev01
           kustomize edit set image ${FULL_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}
 
-#          # 2. Staging-Overlay patchen (falls Staging zeitgleich mitrollen soll)
-#          cd ../staging
-#          kustomize edit set image ${FULL_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}
+          ## 2. Staging-Overlay patchen (falls Staging zeitgleich mitrollen soll)
+          #cd ../staging
+          #kustomize edit set image ${FULL_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}
 
           # Zurück ins Root-Verzeichnis des Repos für den Git-Commit
           cd ../../../..
