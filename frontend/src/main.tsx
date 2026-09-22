@@ -2,12 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { routeTree } from './routeTree.gen'
-import './index.css' // Stellt sicher, dass das dein Tailwind-CSS ist!
+import './index.css' // get tailwind
 
-// Den Router mit dem automatisch generierten Route-Tree erstellen
+// auto-generate router tree
 const router = createRouter({ routeTree })
 
-// Typen-Registrierung für absolute Typsicherheit im gesamten Projekt
+// register types for type safety
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
