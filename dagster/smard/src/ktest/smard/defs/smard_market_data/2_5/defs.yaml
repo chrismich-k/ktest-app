@@ -1,0 +1,12 @@
+type: ktest.smard.components.smard_market_data_component.SmardMarketDataComponent
+
+attributes:
+  category_id: 2
+  sub_id: 5
+  resolution: "quarterhour"
+  start_date: "2024-01-01"
+  spec:
+    key: smard/2_5_quarterhour
+    description: "SMARD Stromverbrauch / Realisierter Stromverbrauch (quarterhour)"
+    group_name: smard
+    kinds: ["iceberg"]
