@@ -5,6 +5,7 @@ version = "0.1.0"
 dependencies = [
     "dagster==1.13.24",
     "dagster-iceberg>=0.3.14",
+    "dagster-postgres>=0.29.24",
     "httpx>=0.28.1",
     "pyiceberg[hive]>=0.11.1",
 ]
