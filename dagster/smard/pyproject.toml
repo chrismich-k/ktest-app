@@ -4,6 +4,7 @@ requires-python = ">=3.10,<3.15"
 version = "0.1.0"
 dependencies = [
     "dagster==1.13.24",
+    "dagster-aws>=0.29.24",
     "dagster-iceberg>=0.3.14",
     "dagster-postgres>=0.29.24",
     "httpx>=0.28.1",
