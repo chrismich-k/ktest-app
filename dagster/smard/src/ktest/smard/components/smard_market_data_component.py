@@ -1,5 +1,5 @@
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import dagster as dg
 import httpx
@@ -7,7 +7,8 @@ import pyarrow as pa
 
 SMARD_BASE_URL = "https://www.smard.de/app/chart_data"
 SMARD_CONFIG_URL = (
-    "https://www.smard.de/app/chart_configuration/market_data_configuration.json"
+    "https://www.smard.de/app/chart_configuration/"
+    "market_data_configuration.json"
 )
 DAY_MS = 24 * 60 * 60 * 1000
 REQUEST_DELAY_SECONDS = 0.1
@@ -68,7 +69,9 @@ class SmardMarketDataComponent(dg.Component, dg.Model, dg.Resolvable):
     spec: dg.ResolvedAssetSpec
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        partitions_def = dg.DailyPartitionsDefinition(start_date=self.start_date)
+        partitions_def = dg.DailyPartitionsDefinition(
+            start_date=self.start_date
+        )
 
         @dg.asset(
             key=self.spec.key,
@@ -84,9 +87,9 @@ class SmardMarketDataComponent(dg.Component, dg.Model, dg.Resolvable):
             pool="smard_iceberg_writes",
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-            day_start = datetime.strptime(context.partition_key, "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            )
+            day_start = datetime.strptime(
+                context.partition_key, "%Y-%m-%d"
+            ).replace(tzinfo=UTC)
             day_start_ms = int(day_start.timestamp() * 1000)
             day_end_ms = day_start_ms + DAY_MS
 
@@ -100,7 +103,9 @@ class SmardMarketDataComponent(dg.Component, dg.Model, dg.Resolvable):
                 pairs = _pairs_for(
                     client, self.category_id, self.sub_id, self.resolution
                 )
-                context.log.info(f"{len(pairs)} (data_id, region) pairs to fetch")
+                context.log.info(
+                    f"{len(pairs)} (data_id, region) pairs to fetch"
+                )
 
                 for data_id, region in pairs:
                     try:
@@ -120,7 +125,8 @@ class SmardMarketDataComponent(dg.Component, dg.Model, dg.Resolvable):
 
                         series_resp = client.get(
                             f"{SMARD_BASE_URL}/{data_id}/{region}/"
-                            f"{data_id}_{region}_{self.resolution}_{chunk_ts}.json"
+                            f"{data_id}_{region}_{self.resolution}_"
+                            f"{chunk_ts}.json"
                         )
                         series_resp.raise_for_status()
                         series = series_resp.json()["series"]

@@ -20,7 +20,9 @@ def resources() -> dg.Definitions:
                         ),
                         "warehouse": os.environ["SMARD_ICEBERG_WAREHOUSE"],
                         "s3.endpoint": os.environ["SMARD_S3_ENDPOINT"],
-                        "s3.access-key-id": os.environ["SMARD_S3_ACCESS_KEY_ID"],
+                        "s3.access-key-id": os.environ[
+                            "SMARD_S3_ACCESS_KEY_ID"
+                        ],
                         "s3.secret-access-key": os.environ[
                             "SMARD_S3_SECRET_ACCESS_KEY"
                         ],
