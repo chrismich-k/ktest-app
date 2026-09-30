@@ -1,0 +1,45 @@
+# "append" write mode (not the default "overwrite"): this endpoint has no
+# date parameter and only ever returns the *current* hour's value (confirmed
+# live 2026-09-30) - with "overwrite", every refresh would wipe out the
+# whole day's partition and replace it with just that one hour, destroying
+# every earlier hour's snapshot from the same day. "append" keeps every
+# fetch instead of replacing; safe to distinguish rows because the raw
+# `Gasday` field THE returns already has hour precision, and every appended
+# row also gets a `create_ts` (see iceberg_write_mode's docstring).
+#
+# partitioned: false - deliberately unpartitioned, not just daily. There's
+# no meaningful Dagster partition to backfill here at all (THE always
+# returns "now" regardless of which date you'd claim to target - a
+# same-endpoint guard used to hard-block materializing anything but the
+# current day for exactly this reason), and Dagster's own backfill-policy
+# UI text for a daily "max 1 partition per run" asset ("Backfills in
+# multiple runs, with a maximum of 1 partitions per run") is confusing
+# for an asset where backfilling was never actually possible in the first
+# place - that message is a fixed dagster_graphql template
+# (GrapheneBackfillPolicy.resolve_description), not something this
+# component can reword. Going unpartitioned removes the backfill UI (and
+# the now-unnecessary guard) entirely instead of just explaining it away;
+# `Gasday` (THE's own reported time) and `create_ts` (actual fetch time,
+# only present because of "append") are enough to slice/query this table
+# by time without Dagster-level partitioning.
+# refresh_seconds is hourly to match THE's own update granularity - anything
+# less frequent would just mean losing hours THE never reports again;
+# anything more frequent would mostly add near-duplicate rows (THE's own
+# value only changes hourly) without gaining real resolution.
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "AggregateImbalancePositions"
+  start_date: "2023-01-01"
+  date_param_mode: "none"
+  partitioned: false
+  rate_limit_class: "erhoeht"
+  iceberg_write_mode: "append"
+  refresh_seconds: 3600
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["Gasday"]
+  spec:
+    key: tradinghub_eu/AggregateImbalancePositions
+    description: "Trading Hub Europe DataExport - AggregateImbalancePositions"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

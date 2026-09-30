@@ -1,0 +1,15 @@
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "TechnicalConversion"
+  start_date: "2023-01-01"
+  partition_granularity: "monthly"
+  dagster_partition_end_offset: 1  # real daily-grained data, refresh current month early
+  rate_limit_class: "erhoeht"
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_monthly_partition"]
+  spec:
+    key: tradinghub_eu/TechnicalConversion
+    description: "Trading Hub Europe DataExport - TechnicalConversion"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

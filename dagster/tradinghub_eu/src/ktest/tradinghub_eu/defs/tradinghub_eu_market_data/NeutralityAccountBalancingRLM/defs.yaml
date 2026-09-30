@@ -1,0 +1,13 @@
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "NeutralityAccountBalancingRLM"
+  start_date: "2023-01-01"
+  partition_granularity: "monthly"
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_monthly_partition"]
+  spec:
+    key: tradinghub_eu/NeutralityAccountBalancingRLM
+    description: "Trading Hub Europe DataExport - NeutralityAccountBalancingRLM"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

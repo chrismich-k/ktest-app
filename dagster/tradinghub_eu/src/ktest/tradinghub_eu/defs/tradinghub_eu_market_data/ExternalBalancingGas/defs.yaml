@@ -1,0 +1,15 @@
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "ExternalBalancingGas"
+  start_date: "2023-01-01"
+  backfill_max_partitions_per_run: 7
+  end_date_lookahead_days: 2
+  rate_limit_class: "erhoeht"
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_daily_partition"]
+  spec:
+    key: tradinghub_eu/ExternalBalancingGas
+    description: "Trading Hub Europe DataExport - ExternalBalancingGas"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

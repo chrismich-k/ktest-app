@@ -1,0 +1,19 @@
+# Same field shape as TransparencyListWithinMonth (XSD `Month: dateOnly`),
+# whose sibling data proved the schema alone can't guarantee month-start-only
+# entries. Safe with partition_granularity: "monthly" regardless, since the
+# component requests each partition's full calendar-month window (not just
+# the 1st) - any non-month-start entry (should one ever appear here) would
+# still be captured, same as verified live for TransparencyListWithinMonth.
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "TransparencyListPostMonth"
+  start_date: "2023-01-01"
+  partition_granularity: "monthly"
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_monthly_partition"]
+  spec:
+    key: tradinghub_eu/TransparencyListPostMonth
+    description: "Trading Hub Europe DataExport - TransparencyListPostMonth"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

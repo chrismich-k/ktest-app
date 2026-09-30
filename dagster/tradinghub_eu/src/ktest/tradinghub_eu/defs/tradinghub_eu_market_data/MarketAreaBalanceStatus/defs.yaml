@@ -1,0 +1,13 @@
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "MarketAreaBalanceStatus"
+  start_date: "2023-01-01"
+  date_param_mode: "single"
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_daily_partition"]
+  spec:
+    key: tradinghub_eu/MarketAreaBalanceStatus
+    description: "Trading Hub Europe DataExport - MarketAreaBalanceStatus"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

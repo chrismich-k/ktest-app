@@ -1,0 +1,26 @@
+# Confirmed live (2026-09-30) that real entries can land on non-month-start
+# days (e.g. Month=2026-07-19, ReasonForPublication "untermonatlich" /
+# "sub-monthly") - the schema's `Month: dateOnly` field alone doesn't
+# guarantee month-start-only data the way it does for the genuinely monthly
+# endpoints. This is fine with partition_granularity: "monthly" precisely
+# *because* the component now requests each monthly partition's full
+# calendar-month window (start of month through its actual last day, not
+# just the 1st) rather than a single day - confirmed live that a
+# day-1-only request misses 2026-07-19 entirely (0 rows) while the
+# full-month request captures it (87 rows). dg_monthly_partition still
+# reflects the partition (month start); the row's real date stays intact
+# in `Month`.
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "TransparencyListWithinMonth"
+  start_date: "2023-01-01"
+  partition_granularity: "monthly"
+  dagster_partition_end_offset: 1  # real daily-grained data, refresh current month early
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["dg_monthly_partition"]
+  spec:
+    key: tradinghub_eu/TransparencyListWithinMonth
+    description: "Trading Hub Europe DataExport - TransparencyListWithinMonth"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]

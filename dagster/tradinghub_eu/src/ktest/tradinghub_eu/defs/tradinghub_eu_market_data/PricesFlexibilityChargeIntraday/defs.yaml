@@ -1,0 +1,41 @@
+# "upsert" write mode + partitioned: false: this endpoint has no date
+# parameter and returns all hours accumulated *since the current Gastag
+# began* (not just the current hour, unlike AggregateImbalancePositions) -
+# each fetch is a more-complete version of "today so far", until the Gastag
+# rolls over at 06:00 German time and the response resets to just the new
+# day's first hour(s).
+#
+# Plain "overwrite" + unpartitioned would be destructive here specifically
+# because unpartitioned overwrite replaces the *entire* table (no partition
+# column to scope the delete to - confirmed against the installed source,
+# row_filter = ALWAYS_TRUE when there are no partition dimensions): the
+# moment the Gastag rolls over, every earlier day's accumulated hours would
+# be wiped out and replaced by the new day's much smaller response. Daily
+# partitioning would fix that (each day protected in its own partition),
+# but "upsert" solves it more directly without needing Dagster partitioning
+# at all: pyiceberg's Table.upsert() (what dagster_iceberg's upsert mode
+# wraps) never deletes anything outside of what it's asked to match - rows
+# for an hour not present in the current fetch (e.g. yesterday's, once a
+# new Gastag has started) are simply left alone. Matching on `Timestamp`
+# also means a value that gets refined within the same day (THE's
+# preliminary-to-final behavior) updates the existing row in place instead
+# of duplicating it, which "append" mode couldn't do (append has no
+# deduplication at all - fine for AggregateImbalancePositions, which only
+# ever returns 1-2 rows/fetch, not for this endpoint, which would
+# re-append its entire growing history on every single refresh).
+type: ktest.tradinghub_eu.components.tradinghub_eu_market_data_component.TradinghubEuMarketDataComponent
+
+attributes:
+  endpoint: "PricesFlexibilityChargeIntraday"
+  start_date: "2023-01-01"
+  date_param_mode: "none"
+  partitioned: false
+  iceberg_write_mode: "upsert"
+  iceberg_upsert_join_columns: ["Timestamp"]
+  user_agent_string: "{{ env.THE_USER_AGENT }}"
+  sort_columns: ["Timestamp"]
+  spec:
+    key: tradinghub_eu/PricesFlexibilityChargeIntraday
+    description: "Trading Hub Europe DataExport - PricesFlexibilityChargeIntraday"
+    group_name: tradinghub_eu
+    kinds: ["iceberg"]
