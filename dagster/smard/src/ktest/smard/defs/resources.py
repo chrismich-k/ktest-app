@@ -28,7 +28,7 @@ def resources() -> dg.Definitions:
                         ],
                     }
                 ),
-                namespace="smard",
+                namespace=os.environ.get("SMARD_ICEBERG_NAMESPACE", "smard"),
             )
         }
     )

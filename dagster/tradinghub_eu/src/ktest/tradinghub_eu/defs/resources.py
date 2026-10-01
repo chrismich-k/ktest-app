@@ -12,7 +12,7 @@ from ktest.tradinghub_eu import (
     iceberg_io_manager as _iceberg_io_manager_patch,  # noqa: F401
 )
 
-NAMESPACE = "tradinghub_eu"
+NAMESPACE = os.environ.get("TRADINGHUB_EU_ICEBERG_NAMESPACE", "tradinghub_eu")
 
 
 def _catalog_properties() -> dict[str, str]:
