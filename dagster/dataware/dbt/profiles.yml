@@ -1,0 +1,31 @@
+# All connection settings come from environment variables (all required, no
+# defaults: the caller decides which data is read and written), so this file
+# contains no secrets and is committed. dbt picks it up from the project
+# directory automatically (no DBT_PROFILES_DIR needed).
+dataware:
+  target: "{{ env_var('DATAWARE_DBT_TARGET') }}"
+  outputs:
+    dev:
+      type: trino
+      method: "{{ env_var('DATAWARE_TRINO_AUTH_METHOD') }}"
+      host: "{{ env_var('DATAWARE_TRINO_HOST') }}"
+      port: "{{ env_var('DATAWARE_TRINO_PORT') | int }}"
+      http_scheme: "{{ env_var('DATAWARE_TRINO_HTTP_SCHEME') }}"
+      cert: true
+      user: "{{ env_var('DATAWARE_TRINO_USER') }}"
+      password: "{{ env_var('DATAWARE_TRINO_PASSWORD') }}"
+      database: "{{ env_var('DATAWARE_TRINO_CATALOG') }}"
+      schema: "{{ env_var('DATAWARE_TRINO_SCHEMA_DEV') }}"
+      threads: 4
+    prod:
+      type: trino
+      method: "{{ env_var('DATAWARE_TRINO_AUTH_METHOD') }}"
+      host: "{{ env_var('DATAWARE_TRINO_HOST') }}"
+      port: "{{ env_var('DATAWARE_TRINO_PORT') | int }}"
+      http_scheme: "{{ env_var('DATAWARE_TRINO_HTTP_SCHEME') }}"
+      cert: true
+      user: "{{ env_var('DATAWARE_TRINO_USER') }}"
+      password: "{{ env_var('DATAWARE_TRINO_PASSWORD') }}"
+      database: "{{ env_var('DATAWARE_TRINO_CATALOG') }}"
+      schema: "{{ env_var('DATAWARE_TRINO_SCHEMA_PROD') }}"
+      threads: 4

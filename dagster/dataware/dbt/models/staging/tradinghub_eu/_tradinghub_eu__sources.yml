@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: tradinghub_eu
+    description: >
+      Raw Trading Hub Europe DataExport tables, written as Iceberg tables by
+      the `tradinghub_eu` Dagster code location (asset keys
+      `tradinghub_eu/<Endpoint>`).
+    database: "{{ env_var('DATAWARE_TRINO_CATALOG') }}"
+    schema: "{{ env_var('DATAWARE_TRADINGHUB_EU_SCHEMA') }}"
+    tables:
+      - name: externalbalancinggas
+        description: >
+          External balancing gas actions of THE per gas day. `gasday` and
+          `timestampactivation` are naive local timestamps (Europe/Berlin);
+          a gas day runs from 06:00 to 06:00 local time of the next day.
+        columns:
+          - name: gasday
+            data_tests:
+              - not_null
+          - name: timestampactivation
+            data_tests:
+              - not_null

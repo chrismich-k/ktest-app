@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar dimension, one row per day, incl. German gas year.
+    columns:
+      - name: date_key
+        description: Integer key in yyyymmdd format.
+        data_tests:
+          - unique
+          - not_null
+      - name: date
+        data_tests:
+          - unique
+          - not_null
+      - name: gas_year
+        description: Gas year label, e.g. 2025/26 (Oct 1 - Sep 30).

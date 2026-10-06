@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: int_tradinghub_eu__external_balancing_gas_activations
+    description: >
+      Balancing actions with a key: dimension attributes + activation_seq
+      (row number within gas day and identical dimension attributes,
+      ordered by price and quantities).
+    columns:
+      - name: activation_id
+        description: Hash over the dimension attributes + activation_seq.
+        data_tests:
+          - unique
+          - not_null
+      - name: activation_seq
+        data_tests:
+          - not_null
+
+  - name: int_tradinghub_eu__external_balancing_gas_hourly
+    description: >
+      External balancing gas actions split into delivery hours. `calendar_day` is the
+      calendar day (Europe/Berlin) the hour belongs to.
+    columns:
+      - name: hour_start_utc
+        data_tests:
+          - not_null
+      - name: quantity_mwh
+        description: Delivered quantity in this hour (daily quantity / duration).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [activation_id, hour_start_utc]
+

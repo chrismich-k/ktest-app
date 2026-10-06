@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_tradinghub_eu__external_balancing_gas
+    description: >
+      External balancing gas actions of THE, one row per action. Units are
+      constant in the source (h, MWh/h, MWh, €/MWh, €) and encoded in the
+      column names instead of separate unit columns.
+    columns:
+      - name: gas_day
+        data_tests:
+          - not_null
+      - name: activation_start_local
+        description: Naive local time (Europe/Berlin), as delivered by THE.
+        data_tests:
+          - not_null
+      - name: activation_start_utc
+      - name: activation_end_utc
+        description: activation_start_utc + duration_h.
+      - name: duration_h
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 25
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [SystemBuy, SystemSell]
+      - name: gas_quality
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [H-Gas, L-Gas, H-/L-Gas]
+      - name: hourly_quantity_mwh_per_h
+      - name: daily_quantity_mwh
+        description: >
+          Total quantity over the activation period; normally
+          hourly_quantity_mwh_per_h * duration_h.
+    data_tests:
+      # an activation must never reach past the end of its gas day
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: >
+              activation_end_utc <= at_timezone(with_timezone(
+              cast(gas_day as timestamp) + interval '1' day + interval '6' hour,
+              'Europe/Berlin'), 'UTC')

@@ -1,0 +1,89 @@
+version: 2
+
+models:
+  - name: dim_location
+    description: Balancing locations (hubs / OTC locations) with their attributes.
+    columns:
+      - name: location_key
+        data_tests:
+          - unique
+          - not_null
+      - name: location
+        data_tests:
+          # guards the assumption that location_type/exchange depend on
+          # location only
+          - unique
+          - not_null
+
+  - name: dim_balancing_product
+    description: >
+      Junk dimension over direction, gas quality, product type, call type
+      and term type of a balancing action.
+    columns:
+      - name: balancing_product_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fct_external_balancing_gas_hourly
+    description: >
+      External balancing gas actions of THE, one row per action and delivery
+      hour. Hours are generated on the UTC instant, so 23h/25h gas days are
+      handled correctly.
+    columns:
+      - name: calendar_date_key
+        description: Calendar day (Europe/Berlin) of the delivery hour.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: gas_day_date_key
+        description: Original gas day of the action (06:00-06:00 local).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: location_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+      - name: balancing_product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_balancing_product')
+                field: balancing_product_key
+      - name: activation_id
+        description: >
+          Degenerate dimension, identifies the original action (hash over
+          its dimension attributes + activation_seq).
+      - name: activation_seq
+        description: >
+          Number of the action among all actions with identical dimension
+          attributes on its gas day, ordered by price and quantities
+          (1 = cheapest).
+      - name: merit_order_rank
+        description: >
+          Degenerate dimension. Nearly a property of the location, but not
+          quite (single-day exceptions), so kept as a plain number here.
+      - name: hour_start_utc
+        data_tests:
+          - not_null
+      - name: quantity_mwh
+        description: Delivered quantity in this hour (MWh).
+      - name: commodity_charge_eur_per_mwh
+        description: Price (€/MWh); not additive.
+      - name: commodity_value_eur
+        description: quantity_mwh x commodity_charge_eur_per_mwh (€).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [activation_id, hour_start_utc]
