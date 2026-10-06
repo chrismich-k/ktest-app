@@ -14,10 +14,7 @@ def resources() -> dg.Definitions:
                 config=IcebergCatalogConfig(
                     properties={
                         "type": "rest",
-                        "uri": os.environ.get(
-                            "SMARD_ICEBERG_REST_URI",
-                            "http://localhost:9001/iceberg",
-                        ),
+                        "uri": os.environ["SMARD_ICEBERG_REST_URI"],
                         "warehouse": os.environ["SMARD_ICEBERG_WAREHOUSE"],
                         "s3.endpoint": os.environ["SMARD_S3_ENDPOINT"],
                         "s3.access-key-id": os.environ[
@@ -28,7 +25,7 @@ def resources() -> dg.Definitions:
                         ],
                     }
                 ),
-                namespace=os.environ.get("SMARD_ICEBERG_NAMESPACE", "smard"),
+                namespace=os.environ["SMARD_ICEBERG_NAMESPACE"],
             )
         }
     )

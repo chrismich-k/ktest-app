@@ -12,16 +12,13 @@ from ktest.tradinghub_eu import (
     iceberg_io_manager as _iceberg_io_manager_patch,  # noqa: F401
 )
 
-NAMESPACE = os.environ.get("TRADINGHUB_EU_ICEBERG_NAMESPACE", "tradinghub_eu")
+NAMESPACE = os.environ["TRADINGHUB_EU_ICEBERG_NAMESPACE"]
 
 
 def _catalog_properties() -> dict[str, str]:
     return {
         "type": "rest",
-        "uri": os.environ.get(
-            "TRADINGHUB_EU_ICEBERG_REST_URI",
-            "http://localhost:9001/iceberg",
-        ),
+        "uri": os.environ["TRADINGHUB_EU_ICEBERG_REST_URI"],
         "warehouse": os.environ["TRADINGHUB_EU_ICEBERG_WAREHOUSE"],
         "s3.endpoint": os.environ["TRADINGHUB_EU_S3_ENDPOINT"],
         "s3.access-key-id": os.environ["TRADINGHUB_EU_S3_ACCESS_KEY_ID"],
