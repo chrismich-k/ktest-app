@@ -1,0 +1,16 @@
+type: dagster_dbt.DbtProjectComponent
+
+template_vars_module: .template_vars
+
+attributes:
+  project: '{{ context.project_root }}/dbt'
+  # Models are tables/views (no incremental models), so a plain `build`
+  # always rebuilds everything that is selected.
+  cli_args:
+    - build
+  translation:
+    group_name: dataware
+    # prefix only our own models; sources must keep the asset keys of the
+    # upstream import assets in the other code locations
+    key_prefix: "{{ [] if node.resource_type == 'source' else ['dataware'] }}"
+    automation_condition: '{{ rebuild_on_upstream_update }}'

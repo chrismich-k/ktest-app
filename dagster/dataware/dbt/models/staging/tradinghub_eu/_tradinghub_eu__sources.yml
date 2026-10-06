@@ -10,6 +10,11 @@ sources:
     schema: "{{ env_var('DATAWARE_TRADINGHUB_EU_SCHEMA') }}"
     tables:
       - name: externalbalancinggas
+        meta:
+          dagster:
+            # asset key of the Dagster import asset (differs in case from
+            # the Iceberg table name)
+            asset_key: ["tradinghub_eu", "ExternalBalancingGas"]
         description: >
           External balancing gas actions of THE per gas day. `gasday` and
           `timestampactivation` are naive local timestamps (Europe/Berlin);

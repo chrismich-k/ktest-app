@@ -8,3 +8,10 @@ tests
 __pycache__
 *.pyc
 .tmp_dagster_home_*
+# local dbt / Dagster artifacts; regenerated inside the image build
+logs
+dbt/target
+dbt/logs
+dbt/dbt_packages
+dbt/package-lock.concurrent-update-lock
+src/**/.local_defs_state
