@@ -2,7 +2,10 @@ version: 2
 
 models:
   - name: dim_location
-    description: Balancing locations (hubs / OTC locations) with their attributes.
+    description: >
+      Locations of balancing actions (hubs / OTC locations) and long-term
+      tenders (incl. storage facilities). location_type and exchange are
+      only known for locations with balancing actions.
     columns:
       - name: location_key
         data_tests:
@@ -87,3 +90,110 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [activation_id, hour_start_utc]
+
+  - name: dim_tender_product
+    description: >
+      Junk dimension over product, gas quality, direction, calculation type
+      and capacity type of a long-term tender lot.
+    columns:
+      - name: tender_product_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: fct_long_term_tender_lots
+    description: >
+      Awarded long-term tender lots of THE (LTO RoD/Hour, Short Call
+      Balancing Services, Flexibility Services), one row per lot.
+    columns:
+      - name: lot_id
+        data_tests:
+          - unique
+          - not_null
+      - name: lot_seq
+        description: Number among otherwise identical lots (separately awarded).
+      - name: location_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+      - name: tender_product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_tender_product')
+                field: tender_product_key
+      - name: first_gas_day_date_key
+        description: First gas day of the option period.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: last_gas_day_date_key
+        description: Last gas day of the option period.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: lot_quantity
+        description: THE field `los`; unit undocumented.
+      - name: capacity_cost_eur
+        description: Capacity price (€) for the whole option period.
+      - name: capacity_cost_eur_per_h
+        description: capacity_cost_eur / duration_h.
+
+  - name: fct_long_term_tender_capacity_cost_hourly
+    description: >
+      Capacity costs of long-term tender lots spread evenly over the hours
+      of their option period, aggregated per hour, location and tender
+      product. Daily/monthly figures are sums over this table.
+    columns:
+      - name: calendar_date_key
+        description: Calendar day (Europe/Berlin) of the hour.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: gas_day_date_key
+        description: Gas day (06:00-06:00 Europe/Berlin) of the hour.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: location_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_location')
+                field: location_key
+      - name: tender_product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_tender_product')
+                field: tender_product_key
+      - name: hour_start_utc
+        data_tests:
+          - not_null
+      - name: active_lots
+        description: Number of lots whose option period covers this hour.
+      - name: active_lot_quantity
+        description: Sum of `los` over active lots; unit undocumented.
+      - name: capacity_cost_eur
+        description: Capacity cost (€) attributed to this hour.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              [hour_start_utc, location_key, tender_product_key]

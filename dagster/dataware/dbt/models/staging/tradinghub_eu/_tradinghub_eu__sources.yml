@@ -26,3 +26,25 @@ sources:
           - name: timestampactivation
             data_tests:
               - not_null
+
+      - name: resultslongtermtenders
+        meta:
+          dagster:
+            asset_key: ["tradinghub_eu", "ResultsLongTermTenders"]
+        description: >
+          Results of THE's long-term balancing tenders (LTO RoD/Hour, Short
+          Call Balancing Services, Flexibility Services), from an
+          undocumented website JSON endpoint. One row per awarded lot;
+          identical rows are separate lots. `start`/`ende` are naive local
+          timestamps (Europe/Berlin), gas-day aligned (06:00).
+        columns:
+          - name: start
+            data_tests:
+              - not_null
+          - name: ende
+            data_tests:
+              - not_null
+          - name: leistungspreis
+            description: Capacity price in € for the whole option period.
+            data_tests:
+              - not_null

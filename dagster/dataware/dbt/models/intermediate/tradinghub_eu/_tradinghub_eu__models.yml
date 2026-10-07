@@ -31,3 +31,12 @@ models:
           arguments:
             combination_of_columns: [activation_id, hour_start_utc]
 
+  - name: int_tradinghub_eu__long_term_tender_lots
+    description: >
+      Awarded tender lots with a key: all attributes + lot_seq (number among
+      identical rows, i.e. separately awarded identical lots).
+    columns:
+      - name: lot_id
+        data_tests:
+          - unique
+          - not_null
