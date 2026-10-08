@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: api_balancing_cost_hourly
+    description: >
+      Read interface for the web API: hourly balancing costs of THE from
+      external balancing gas actions (EBG) and long-term tender capacity
+      prices (LTO), signed (cost > 0, revenue < 0). The API aggregates this
+      to day/week/month on calendar_date or gas_day.
+    columns:
+      - name: stack_label
+        description: >
+          Stack element of the cost chart (legend entry and colour): EBG
+          product x gas quality, LTO capacity price per gas quality.
+        data_tests:
+          - not_null
+      - name: stack_side
+        description: >
+          'buy' (stacked up) or 'sell' (stacked down); LTO is always 'buy'.
+          Chart series key = stack_side || ':' || stack_label.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['buy', 'sell']
+      - name: direction
+        description: Inner ring of the breakdown pie.
+      - name: product_label
+        description: Outer ring of the breakdown pie, together with location_label.
+      - name: location_label
+        description: Outer ring of the breakdown pie, together with product_label.
+        data_tests:
+          - not_null
+      - name: amount_eur
+        description: Signed amount, > 0 cost, < 0 revenue.
+      - name: quantity_mwh
+        description: Delivered quantity of balancing actions, null for LTO.

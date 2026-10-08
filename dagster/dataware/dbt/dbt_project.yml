@@ -27,6 +27,11 @@ models:
     marts:
       +materialized: table
       +schema: marts
+    api:
+      # read interface for the web API, decoupled from the star schema so
+      # the serving store can change later without touching the frontend
+      +materialized: view
+      +schema: api
 
 flags:
   # verify Trino's TLS certificate (dbt-trino's legacy default is not to)
