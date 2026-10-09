@@ -18,4 +18,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    // API dev server (api/README.md); in production the ingress routes /api
+    proxy: {
+      "/api": "http://localhost:8000",
+    },
+  },
 })

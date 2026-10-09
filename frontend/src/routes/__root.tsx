@@ -8,6 +8,9 @@ export const Route = createRootRoute({
         <Link to="/" className="font-medium hover:underline [&.active]:text-blue-600">
           Start
         </Link>
+        <Link to="/regelenergie" className="font-medium hover:underline [&.active]:text-blue-600">
+          Regelenergie
+        </Link>
         <Link to="/about" className="font-medium hover:underline [&.active]:text-blue-600">
           About
         </Link>
