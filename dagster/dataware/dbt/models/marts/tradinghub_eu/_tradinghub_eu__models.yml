@@ -17,6 +17,19 @@ models:
           # location only
           - unique
           - not_null
+      - name: location_kind
+        description: >
+          storage | zone from the seed location_kinds; unknown for locations
+          missing there.
+        data_tests:
+          - not_null
+          - accepted_values:
+              # 'unknown' = a new location THE delivers: add it to
+              # seeds/location_kinds.csv
+              arguments:
+                values: [storage, zone]
+              config:
+                severity: warn
 
   - name: dim_balancing_product
     description: >
@@ -197,3 +210,21 @@ models:
           arguments:
             combination_of_columns:
               [hour_start_utc, location_key, tender_product_key]
+
+  - name: fct_energy_imbalance_prices_daily
+    description: >
+      THE's daily balancing prices per gas day (EUR/MWh), incl. the VTP
+      daily average price ("mittlerer Gaspreis"). The current gas day is
+      missing until THE publishes it.
+    columns:
+      - name: gas_day_date_key
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: vtp_daily_average_price_eur_per_mwh
+        data_tests:
+          - not_null

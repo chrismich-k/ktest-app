@@ -33,6 +33,10 @@ models:
       +materialized: view
       +schema: api
 
+seeds:
+  dataware:
+    +schema: seeds
+
 flags:
   # verify Trino's TLS certificate (dbt-trino's legacy default is not to)
   require_certificate_validation: true

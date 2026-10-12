@@ -67,3 +67,19 @@ models:
           - accepted_values:
               arguments:
                 values: [SystemBuy, SystemSell]
+
+  - name: stg_tradinghub_eu__energy_imbalance_prices
+    description: >
+      Daily energy imbalance prices of THE, one row per gas day (EUR/MWh).
+      The current gas day is missing until THE publishes it.
+    columns:
+      - name: gas_day
+        data_tests:
+          - not_null
+          - unique
+      - name: vtp_daily_average_price_eur_per_mwh
+        description: >
+          VTP daily average price ("mittlerer Gaspreis"), reference price of
+          the balancing cost chart.
+        data_tests:
+          - not_null

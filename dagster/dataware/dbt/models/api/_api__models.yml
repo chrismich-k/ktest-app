@@ -30,6 +30,14 @@ models:
         description: Outer ring of the breakdown pie, together with product_label.
         data_tests:
           - not_null
+      - name: location_kind
+        description: Kind of location (storage | zone | unknown), for the location symbol.
+        data_tests:
+          - not_null
+      - name: reference_price_eur_per_mwh
+        description: >
+          VTP daily average price of the hour's gas day, for EBG rows only;
+          null for LTO and while THE has not published the gas day yet.
       - name: amount_eur
         description: Signed amount, > 0 cost, < 0 revenue.
       - name: quantity_mwh

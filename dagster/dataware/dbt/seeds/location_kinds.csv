@@ -1,0 +1,36 @@
+location,location_kind
+EMPELDE,storage
+Empelde,storage
+SPEICHER EPE L (NUON),storage
+SPEICHER EPE L (RGS),storage
+SPEICHER EPE L (UST),storage
+UGS Harsefeld (Entry/Exit),storage
+UGS Lesum,storage
+UGS Nüttermoor,storage
+UGS Peckensen,storage
+UGS Uelsen (Entry/Exit),storage
+ZONE UGS EWE L-GAS,storage
+Zone UGS EWE L-Gas,storage
+HGN,zone
+HGU,zone
+HM,zone
+HN,zone
+LGN,zone
+EEX ETF,zone
+EEX PEG,zone
+EEX ZTP,zone
+ETF,zone
+PEG,zone
+THE,zone
+THEH,zone
+THEL,zone
+THEL-LO,zone
+THEL-LW,zone
+TTF,zone
+HGE,zone
+HOS,zone
+HS,zone
+LGU,zone
+LNA,zone
+LO,zone
+LW,zone

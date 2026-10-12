@@ -48,3 +48,23 @@ sources:
             description: Capacity price in € for the whole option period.
             data_tests:
               - not_null
+
+      - name: pricesenergyimbalance
+        meta:
+          dagster:
+            asset_key: ["tradinghub_eu", "PricesEnergyImbalance"]
+        description: >
+          Daily energy imbalance prices of THE incl. the VTP daily average
+          price ("mittlerer Gaspreis"), one row per gas day. A gas day's
+          prices are published after it has ended, so the current gas day
+          has none yet. `gasday` is a naive local date (as timestamp).
+        columns:
+          - name: gasday
+            data_tests:
+              - not_null
+              - unique
+          - name: unit
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: [EUR/MWh]

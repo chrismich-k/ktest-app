@@ -3,6 +3,9 @@
 -- exchange depend on location alone and are only known from the balancing
 -- actions (the unique test on `location` fails the build if THE ever breaks
 -- that); tender-only locations (e.g. storage facilities) leave them empty.
+-- location_kind (storage | zone) comes from the hand-maintained seed
+-- location_kinds, independent of location_type (how it is traded);
+-- locations missing there get 'unknown' (warning test).
 with balancing as (
 
     select distinct
@@ -33,8 +36,12 @@ locations as (
 )
 
 select
-    {{ dbt_utils.generate_surrogate_key(['location']) }} as location_key,
-    location,
-    location_type,
-    exchange
+    {{ dbt_utils.generate_surrogate_key(['locations.location']) }}
+        as location_key,
+    locations.location,
+    locations.location_type,
+    locations.exchange,
+    coalesce(kinds.location_kind, 'unknown') as location_kind
 from locations
+left join {{ ref('location_kinds') }} as kinds
+    on locations.location = kinds.location

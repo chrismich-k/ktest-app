@@ -1,0 +1,23 @@
+version: 2
+
+seeds:
+  - name: location_kinds
+    description: >
+      Hand-maintained kind of every location: 'storage' (a storage
+      facility or a group of them) or 'zone' (a region/zone/market area).
+      Independent of how it is traded (location_type Exchange/OTC from the
+      data). dim_location warns about locations missing here.
+    config:
+      column_types:
+        location: varchar
+        location_kind: varchar
+    columns:
+      - name: location
+        data_tests:
+          - unique
+          - not_null
+      - name: location_kind
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [storage, zone]

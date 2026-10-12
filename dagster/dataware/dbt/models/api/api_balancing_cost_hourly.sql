@@ -88,9 +88,16 @@ select
     concat_ws(
         ' - ', location.location, location.location_type, location.exchange
     ) as location_label,
+    location.location_kind,
     costs.hour_start_utc,
     calendar_day.date as calendar_date,
     gas_day.date as gas_day,
+    -- reference price of the hour's gas day (VTP daily average price);
+    -- only for balancing actions, null while THE has not published it
+    case
+        when costs.source = 'EBG'
+            then prices.vtp_daily_average_price_eur_per_mwh
+    end as reference_price_eur_per_mwh,
     sum(costs.amount_eur) as amount_eur,
     sum(costs.quantity_mwh) as quantity_mwh
 from costs
@@ -100,4 +107,6 @@ inner join {{ ref('dim_date') }} as calendar_day
     on costs.calendar_date_key = calendar_day.date_key
 inner join {{ ref('dim_date') }} as gas_day
     on costs.gas_day_date_key = gas_day.date_key
-group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+left join {{ ref('fct_energy_imbalance_prices_daily') }} as prices
+    on costs.gas_day_date_key = prices.gas_day_date_key
+group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
