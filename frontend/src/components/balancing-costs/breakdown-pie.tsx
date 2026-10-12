@@ -123,17 +123,16 @@ function DirectionRows({
 }) {
   return (
     <>
+      {/* header: direction and its reference price, one line each */}
       <tr className="font-medium">
-        <td className="pr-1">
+        <td className="pt-1 pr-1">
           <span className="block size-2.5 rounded-sm" style={{ background: direction.fill }} />
         </td>
-        <td className="whitespace-nowrap">
-          <div>{direction.direction}</div>
+        <td className="pt-1 whitespace-nowrap">{direction.direction}</td>
+        <td colSpan={2} className="pt-1 pl-2 text-right whitespace-nowrap">
           <Reference prices={direction} />
         </td>
-        <PriceCells direction={direction.direction} prices={direction} />
-        <td className="pl-2 text-right tabular-nums">{formatEur(direction.amount_eur)}</td>
-        <td className="pl-2 text-right tabular-nums">{formatPercent(direction.amount_eur / total)}</td>
+        <td colSpan={2} />
       </tr>
       {slices.map((slice) => (
         <tr key={`${slice.product_label}|${slice.location}`}>
@@ -166,24 +165,36 @@ function DirectionRows({
           </td>
         </tr>
       ))}
+      {/* total of the direction (repeats the only row if there is one) */}
+      {slices.length > 1 && (
+        <tr className="border-t font-medium">
+          <td />
+          <td>Gesamt</td>
+          <PriceCells direction={direction.direction} prices={direction} />
+          <td className="pl-2 text-right tabular-nums">{formatEur(direction.amount_eur)}</td>
+          <td className="pl-2 text-right tabular-nums">
+            {formatPercent(direction.amount_eur / total)}
+          </td>
+        </tr>
+      )}
     </>
   )
 }
 
-// "Ø Ref 75,53 €/MWh" below the direction, or why there is none
+// "Ø Ref 75,53 €/MWh" next to the direction, or why there is none
 function Reference({ prices }: { prices: DirectionSlice }) {
   if (prices.quantity_mwh === null) return null
   if (prices.reference_price_eur_per_mwh === null) {
-    return <div className="font-normal text-muted-foreground">Referenz ausstehend</div>
+    return <span className="font-normal text-muted-foreground">Referenz ausstehend</span>
   }
   return (
-    <div
-      className="font-normal text-muted-foreground"
+    <span
+      className="font-normal text-muted-foreground tabular-nums"
       title="Referenzpreis: mittlerer Gaspreis (VTP) der Gastage, mengengewichtet"
     >
       Ø Ref {formatPrice(prices.reference_price_eur_per_mwh)}
       {prices.reference_complete === false && "*"}
-    </div>
+    </span>
   )
 }
 
