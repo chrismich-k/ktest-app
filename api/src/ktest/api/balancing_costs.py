@@ -4,9 +4,13 @@ Reads the dbt view api_balancing_cost_hourly (one row per delivery hour,
 source, direction, product and location; amount_eur > 0 cost, < 0
 revenue) and aggregates it for the cost chart:
 
-- /timeseries: stacked bars per bucket (stack_side:stack_label) + net
+- /timeseries: stacked bars per bucket (stack_side:stack_label) + net,
+  plus the delivered quantities (balancing actions only)
 - /breakdown: two-level pie for one bar element (stack_label) of one
-  bucket: inner ring direction, outer ring product x location
+  bucket: inner ring direction, outer ring product x location, with the
+  prices paid compared to the reference price (VTP daily average price of
+  each hour's gas day; missing for the current gas day until THE
+  publishes it)
 """
 
 import time
@@ -98,8 +102,12 @@ class Series(BaseModel):
 
 class Bucket(BaseModel):
     bucket: str
+    # signed amounts per series key (> 0 cost, < 0 revenue)
     values: dict[str, float]
     net: float
+    # delivered quantities per series key, signed like the series (buy > 0,
+    # sell < 0); only balancing actions (LTO capacity has no quantity)
+    quantities: dict[str, float]
 
 
 class Timeseries(BaseModel):
@@ -133,7 +141,8 @@ def timeseries(
             {_bucket_expression(grain, day_basis)} as bucket,
             stack_side,
             stack_label,
-            sum(amount_eur) as amount_eur
+            sum(amount_eur) as amount_eur,
+            sum(quantity_mwh) as quantity_mwh
         from {TABLE}
         where {where}
         group by 1, 2, 3
@@ -144,6 +153,7 @@ def timeseries(
 
     series: dict[str, Series] = {}
     buckets: dict[str, dict[str, float]] = defaultdict(dict)
+    quantities: dict[str, dict[str, float]] = defaultdict(dict)
     for row in rows:
         key = f"{row['stack_side']}:{row['stack_label']}"
         series.setdefault(
@@ -154,13 +164,22 @@ def timeseries(
                 stack_side=row["stack_side"],
             ),
         )
-        buckets[_bucket_key(row["bucket"])][key] = row["amount_eur"]
+        bucket = _bucket_key(row["bucket"])
+        buckets[bucket][key] = row["amount_eur"]
+        if row["quantity_mwh"] is not None:
+            sign = -1 if row["stack_side"] == "sell" else 1
+            quantities[bucket][key] = sign * row["quantity_mwh"]
 
     return Timeseries(
         grain=grain,
         series=[series[key] for key in sorted(series)],
         buckets=[
-            Bucket(bucket=bucket, values=values, net=sum(values.values()))
+            Bucket(
+                bucket=bucket,
+                values=values,
+                net=sum(values.values()),
+                quantities=quantities[bucket],
+            )
             for bucket, values in buckets.items()
         ],
     )
@@ -187,16 +206,83 @@ def _bucket_range(
     return day, next_month
 
 
-class Slice(BaseModel):
+class Prices(BaseModel):
+    """Prices of balancing actions (EUR/MWh); all None for LTO."""
+
+    quantity_mwh: float | None = None
+    # volume-weighted price paid (SystemBuy) or received (SystemSell)
+    price_eur_per_mwh: float | None = None
+    # volume-weighted reference price over the hours that have one
+    reference_price_eur_per_mwh: float | None = None
+    # price / reference - 1 over the hours that have a reference price
+    price_deviation: float | None = None
+    # False if some hours have no reference price yet (current gas day)
+    reference_complete: bool | None = None
+
+
+class Direction(Prices):
     direction: str
-    product_label: str | None = None
-    location_label: str | None = None
+    amount_eur: float
+
+
+class Slice(Prices):
+    direction: str
+    source: str
+    product_label: str
+    location: str
+    # how it is traded (Exchange | OTC; None for tender-only locations)
+    location_type: str | None = None
+    exchange: str | None = None
+    # what it is (storage | zone | unknown)
+    location_kind: str
     amount_eur: float
 
 
 class Breakdown(BaseModel):
-    inner: list[Slice]
+    inner: list[Direction]
     outer: list[Slice]
+
+
+class _Sums:
+    """Sums of one pie slice or direction, turned into prices."""
+
+    def __init__(self) -> None:
+        self.amount = 0.0
+        self.quantity = 0.0
+        self.referenced_amount = 0.0
+        self.referenced_quantity = 0.0
+        self.reference_value = 0.0
+        self.has_quantity = False
+
+    def add(self, row: dict[str, Any]) -> None:
+        self.amount += row["amount_eur"]
+        if row["quantity_mwh"] is not None:
+            self.has_quantity = True
+            self.quantity += row["quantity_mwh"]
+            self.referenced_amount += row["referenced_amount_eur"] or 0
+            self.referenced_quantity += row["referenced_quantity_mwh"] or 0
+            self.reference_value += row["reference_value_eur"] or 0
+
+    def prices(self, direction: str) -> dict[str, Any]:
+        if not self.has_quantity or not self.quantity:
+            return {}
+        # amounts are signed (sell = revenue < 0); prices are unsigned, so
+        # a negative sell price stays negative
+        sign = -1 if direction == "SystemSell" else 1
+        prices: dict[str, Any] = {
+            "quantity_mwh": self.quantity,
+            "price_eur_per_mwh": sign * self.amount / self.quantity,
+            "reference_complete": self.referenced_quantity
+            >= self.quantity * (1 - 1e-9),
+        }
+        if self.referenced_quantity and self.reference_value:
+            prices["reference_price_eur_per_mwh"] = (
+                self.reference_value / self.referenced_quantity
+            )
+            prices["price_deviation"] = (
+                sign * self.referenced_amount / self.reference_value - 1
+            )
+        return prices
 
 
 @router.get("/breakdown", response_model=Breakdown)
@@ -215,6 +301,8 @@ def breakdown(
 
     Amounts are absolute values (pie slices). start/end/filters are the
     ones of the chart, so the pie matches a partially covered bucket.
+    Prices are compared to the reference price of each hour's gas day, so
+    any bucket (also calendar days, weeks, months) is weighted correctly.
     """
     filters = _filters(
         start, end, day_basis, include_lto, gas_quality, location_type
@@ -235,29 +323,63 @@ def breakdown(
         f"""
         select
             direction,
+            source,
             product_label,
-            location_label,
-            abs(sum(amount_eur)) as amount_eur
+            location,
+            location_type,
+            exchange,
+            location_kind,
+            sum(amount_eur) as amount_eur,
+            sum(quantity_mwh) as quantity_mwh,
+            sum(amount_eur) filter (
+                where reference_price_eur_per_mwh is not null
+            ) as referenced_amount_eur,
+            sum(quantity_mwh) filter (
+                where reference_price_eur_per_mwh is not null
+            ) as referenced_quantity_mwh,
+            sum(quantity_mwh * reference_price_eur_per_mwh)
+                as reference_value_eur
         from {TABLE}
         where {where} and {bucket_clause} and stack_label = ?
-        group by 1, 2, 3
+        group by 1, 2, 3, 4, 5, 6, 7
         having sum(amount_eur) <> 0
-        order by 1, 4 desc
         """,
         [*params, stack_label],
     )
-    outer = [Slice(**row) for row in rows]
-    inner_amounts: dict[str, float] = defaultdict(float)
-    for piece in outer:
-        inner_amounts[piece.direction] += piece.amount_eur
-    return Breakdown(
+    rows.sort(key=lambda row: (row["direction"], -abs(row["amount_eur"])))
+
+    outer: list[Slice] = []
+    directions: dict[str, _Sums] = defaultdict(_Sums)
+    for row in rows:
+        directions[row["direction"]].add(row)
+        sums = _Sums()
+        sums.add(row)
+        outer.append(
+            Slice(
+                direction=row["direction"],
+                source=row["source"],
+                product_label=row["product_label"],
+                location=row["location"],
+                location_type=row["location_type"],
+                exchange=row["exchange"],
+                location_kind=row["location_kind"],
+                amount_eur=abs(row["amount_eur"]),
+                **sums.prices(row["direction"]),
+            )
+        )
+    inner = [
+        Direction(
+            direction=direction,
+            # pie ring: same total as its outer slices
+            amount_eur=sum(
+                s.amount_eur for s in outer if s.direction == direction
+            ),
+            **sums.prices(direction),
+        )
         # same order as outer (sorted by direction), so the rings line up
-        inner=[
-            Slice(direction=direction, amount_eur=amount)
-            for direction, amount in inner_amounts.items()
-        ],
-        outer=outer,
-    )
+        for direction, sums in directions.items()
+    ]
+    return Breakdown(inner=inner, outer=outer)
 
 
 class StackLabel(BaseModel):
