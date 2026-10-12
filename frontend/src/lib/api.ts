@@ -29,8 +29,12 @@ export type Series = {
 
 export type Bucket = {
   bucket: string
+  // signed amounts per series key (> 0 cost, < 0 revenue)
   values: Record<string, number>
   net: number
+  // delivered quantities (MWh) per series key, signed like the series;
+  // balancing actions only
+  quantities: Record<string, number>
 }
 
 export type Timeseries = {
@@ -39,15 +43,40 @@ export type Timeseries = {
   buckets: Bucket[]
 }
 
-export type Slice = {
+export type LocationKind = "storage" | "zone" | "unknown"
+
+// prices of balancing actions in EUR/MWh; null for LTO capacity prices
+export type Prices = {
+  quantity_mwh: number | null
+  price_eur_per_mwh: number | null
+  // VTP daily average price of the hours' gas days, volume-weighted
+  reference_price_eur_per_mwh: number | null
+  // price / reference - 1, over the hours that have a reference price
+  price_deviation: number | null
+  // false if the current gas day has no reference price yet
+  reference_complete: boolean | null
+}
+
+export type DirectionSlice = Prices & {
   direction: string
-  product_label: string | null
-  location_label: string | null
+  amount_eur: number
+}
+
+export type Slice = Prices & {
+  direction: string
+  source: string
+  product_label: string
+  location: string
+  // how it is traded: "Exchange" | "OTC", null for tender-only locations
+  location_type: string | null
+  exchange: string | null
+  // what it is
+  location_kind: LocationKind
   amount_eur: number
 }
 
 export type Breakdown = {
-  inner: Slice[]
+  inner: DirectionSlice[]
   outer: Slice[]
 }
 

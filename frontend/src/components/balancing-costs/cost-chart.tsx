@@ -27,7 +27,7 @@ type Hover = {
   width: number
 }
 
-const PIE_WIDTH = 416 // w-[26rem] of BreakdownPie
+const PIE_WIDTH = 608 // w-[38rem] of BreakdownPie
 const PIE_OFFSET = 16
 
 type Props = {

@@ -20,6 +20,20 @@ export const formatPercent = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 1,
 }).format
 
+export const formatDeviation = new Intl.NumberFormat("de-DE", {
+  style: "percent",
+  maximumFractionDigits: 1,
+  signDisplay: "exceptZero",
+}).format
+
+const priceFormat = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+export const formatPrice = (eurPerMwh: number) =>
+  `${priceFormat.format(eurPerMwh)} €/MWh`
+
 // date-only buckets are calendar/gas days, not instants: format them in UTC
 // so the browser's time zone cannot shift them
 function dateOnly(iso: string) {
