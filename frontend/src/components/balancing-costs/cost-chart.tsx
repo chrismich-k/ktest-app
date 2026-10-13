@@ -16,6 +16,7 @@ import type { Bucket, CostFilters, Series } from "@/lib/api"
 
 import { BreakdownPie } from "./breakdown-pie"
 import { formatBucket, formatEur, formatEurCompact } from "./format"
+import { Y_AXIS_WIDTH, type Axis } from "./scale"
 
 // pointer position relative to the chart (and its width), for placing the
 // pie overlay
@@ -35,13 +36,24 @@ type Props = {
   buckets: Bucket[]
   series: Series[] // visible series, in stacking order
   colors: Map<string, string>
+  axis?: Axis // shared scale with the quantity chart, else automatic
+  height: string
+  syncId: string
 }
 
 // Stacked bars per product (buy up, sell down, one colour per stack label)
 // with the net amount of the visible series as a line on top. Hovering a
 // bar segment shows the breakdown pie of its stack label as an overlay
 // (a chart nested into the Recharts tooltip does not size correctly).
-export function CostChart({ filters, buckets, series, colors }: Props) {
+export function CostChart({
+  filters,
+  buckets,
+  series,
+  colors,
+  axis,
+  height,
+  syncId,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<Hover | null>(null)
   // only ask the API for the pie once the pointer rests on a segment
@@ -61,10 +73,11 @@ export function CostChart({ filters, buckets, series, colors }: Props) {
 
   return (
     <div ref={containerRef} className="relative">
-      <ChartContainer config={{}} className="aspect-auto h-[32rem] w-full">
+      <ChartContainer config={{}} className="aspect-auto w-full" style={{ height }}>
         <ComposedChart
           data={buckets}
           stackOffset="sign"
+          syncId={syncId}
           margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
           <CartesianGrid vertical={false} />
@@ -73,7 +86,11 @@ export function CostChart({ filters, buckets, series, colors }: Props) {
             tickFormatter={(bucket: string) => formatBucket(bucket, filters.grain)}
             minTickGap={24}
           />
-          <YAxis tickFormatter={(value: number) => formatEurCompact(value)} width={84} />
+          <YAxis
+            tickFormatter={(value: number) => formatEurCompact(value)}
+            width={Y_AXIS_WIDTH}
+            {...(axis && { domain: axis.domain, ticks: axis.ticks, allowDataOverflow: true })}
+          />
           <ReferenceLine y={0} stroke="var(--foreground)" />
           <Tooltip
             cursor={{ fill: "var(--muted)", fillOpacity: 0.5 }}

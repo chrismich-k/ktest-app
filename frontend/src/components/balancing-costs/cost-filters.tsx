@@ -21,13 +21,28 @@ const DAY_BASES: { value: DayBasis; label: string }[] = [
   { value: "calendar_date", label: "Kalendertag" },
 ]
 
+export type ChartKind = "cost" | "quantity"
+
+const CHARTS: { value: ChartKind; label: string }[] = [
+  { value: "cost", label: "Kosten" },
+  { value: "quantity", label: "Mengen" },
+]
+
 type Props = {
   meta: Meta
   filters: CostFilters
   onChange: (filters: CostFilters) => void
+  charts: ChartKind[]
+  onChartsChange: (charts: ChartKind[]) => void
 }
 
-export function CostFilterBar({ meta, filters, onChange }: Props) {
+export function CostFilterBar({
+  meta,
+  filters,
+  onChange,
+  charts,
+  onChartsChange,
+}: Props) {
   const set = (patch: Partial<CostFilters>) => onChange({ ...filters, ...patch })
 
   const setGrain = (grain: Grain) => {
@@ -50,6 +65,33 @@ export function CostFilterBar({ meta, filters, onChange }: Props) {
 
   return (
     <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+      <Field label="Diagramme">
+        <ToggleGroup
+          multiple
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={charts}
+          onValueChange={(values) =>
+            values.length > 0 &&
+            onChartsChange(
+              CHARTS.map((c) => c.value).filter((c) => values.includes(c)),
+            )
+          }
+        >
+          {CHARTS.map((c) => (
+            <ToggleGroupItem
+              key={c.value}
+              value={c.value}
+              // at least one chart stays visible
+              disabled={charts.length === 1 && charts[0] === c.value}
+            >
+              {c.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </Field>
+
       <Field label="Auflösung">
         <ToggleGroup
           variant="outline"

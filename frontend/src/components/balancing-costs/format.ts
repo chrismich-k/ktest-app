@@ -15,7 +15,18 @@ export const formatEurCompact = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 1,
 }).format
 
-export const formatPercent = new Intl.NumberFormat("de-DE", {
+const mwhFormat = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 })
+const mwhCompactFormat = new Intl.NumberFormat("de-DE", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+})
+
+export const formatMwh = (mwh: number) => `${mwhFormat.format(mwh)} MWh`
+
+export const formatMwhCompact = (mwh: number) =>
+  `${mwhCompactFormat.format(mwh)} MWh`
+
+export const formatPercent =new Intl.NumberFormat("de-DE", {
   style: "percent",
   maximumFractionDigits: 1,
 }).format
