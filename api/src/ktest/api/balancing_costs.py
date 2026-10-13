@@ -5,7 +5,8 @@ source, direction, product and location; amount_eur > 0 cost, < 0
 revenue) and aggregates it for the cost chart:
 
 - /timeseries: stacked bars per bucket (stack_side:stack_label) + net,
-  plus the delivered quantities (balancing actions only)
+  plus the delivered quantities and the excess cost over the reference
+  price (balancing actions only)
 - /breakdown: two-level pie for one bar element (stack_label) of one
   bucket: inner ring direction, outer ring product x location, with the
   prices paid compared to the reference price (VTP daily average price of
@@ -108,6 +109,16 @@ class Bucket(BaseModel):
     # delivered quantities per series key, signed like the series (buy > 0,
     # sell < 0); only balancing actions (LTO capacity has no quantity)
     quantities: dict[str, float]
+    # value of those quantities at the reference price, signed the same
+    # way; only hours that have a reference price
+    reference_values: dict[str, float]
+    # excess cost per series key over the hours with a reference price:
+    # amount - reference value, > 0 bought above / sold below the
+    # reference (unfavourable), < 0 favourable
+    excess: dict[str, float]
+    # false if some balancing hours have no reference price yet (current
+    # gas day)
+    reference_complete: bool
 
 
 class Timeseries(BaseModel):
@@ -142,7 +153,15 @@ def timeseries(
             stack_side,
             stack_label,
             sum(amount_eur) as amount_eur,
-            sum(quantity_mwh) as quantity_mwh
+            sum(quantity_mwh) as quantity_mwh,
+            sum(amount_eur) filter (
+                where reference_price_eur_per_mwh is not null
+            ) as referenced_amount_eur,
+            sum(quantity_mwh * reference_price_eur_per_mwh)
+                as reference_value_eur,
+            sum(quantity_mwh) filter (
+                where reference_price_eur_per_mwh is null
+            ) as unreferenced_quantity_mwh
         from {TABLE}
         where {where}
         group by 1, 2, 3
@@ -154,6 +173,9 @@ def timeseries(
     series: dict[str, Series] = {}
     buckets: dict[str, dict[str, float]] = defaultdict(dict)
     quantities: dict[str, dict[str, float]] = defaultdict(dict)
+    reference_values: dict[str, dict[str, float]] = defaultdict(dict)
+    excess: dict[str, dict[str, float]] = defaultdict(dict)
+    incomplete: set[str] = set()
     for row in rows:
         key = f"{row['stack_side']}:{row['stack_label']}"
         series.setdefault(
@@ -169,6 +191,14 @@ def timeseries(
         if row["quantity_mwh"] is not None:
             sign = -1 if row["stack_side"] == "sell" else 1
             quantities[bucket][key] = sign * row["quantity_mwh"]
+            if row["reference_value_eur"] is not None:
+                reference_value = sign * row["reference_value_eur"]
+                reference_values[bucket][key] = reference_value
+                excess[bucket][key] = (
+                    row["referenced_amount_eur"] - reference_value
+                )
+            if row["unreferenced_quantity_mwh"]:
+                incomplete.add(bucket)
 
     return Timeseries(
         grain=grain,
@@ -179,6 +209,9 @@ def timeseries(
                 values=values,
                 net=sum(values.values()),
                 quantities=quantities[bucket],
+                reference_values=reference_values[bucket],
+                excess=excess[bucket],
+                reference_complete=bucket not in incomplete,
             )
             for bucket, values in buckets.items()
         ],
