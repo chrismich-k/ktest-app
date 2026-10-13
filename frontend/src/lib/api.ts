@@ -35,6 +35,14 @@ export type Bucket = {
   // delivered quantities (MWh) per series key, signed like the series;
   // balancing actions only
   quantities: Record<string, number>
+  // value of those quantities at the reference price (VTP daily average
+  // price), signed the same way; only hours with a reference price
+  reference_values: Record<string, number>
+  // excess cost over the reference: amount - reference value, > 0
+  // unfavourable (bought above / sold below the reference)
+  excess: Record<string, number>
+  // false if some hours have no reference price yet (current gas day)
+  reference_complete: boolean
 }
 
 export type Timeseries = {

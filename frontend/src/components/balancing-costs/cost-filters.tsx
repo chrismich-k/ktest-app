@@ -21,11 +21,12 @@ const DAY_BASES: { value: DayBasis; label: string }[] = [
   { value: "calendar_date", label: "Kalendertag" },
 ]
 
-export type ChartKind = "cost" | "quantity"
+export type ChartKind = "cost" | "quantity" | "excess"
 
 const CHARTS: { value: ChartKind; label: string }[] = [
   { value: "cost", label: "Kosten" },
   { value: "quantity", label: "Mengen" },
+  { value: "excess", label: "Mehrkosten" },
 ]
 
 type Props = {

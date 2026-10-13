@@ -6,11 +6,15 @@ import { CostFilterBar, type ChartKind } from "./cost-filters"
 import { CostLegend } from "./cost-legend"
 import { stackColors } from "./colors"
 import { addDays, formatEur, formatMwh, formatPrice } from "./format"
+import { ExcessChart } from "./excess-chart"
 import { QuantityChart } from "./quantity-chart"
 import { averagePrice, niceAxis, scaledAxis, stackExtent, type Axis } from "./scale"
 
-// hovering one chart shows the tooltip of the same bucket in the other
+// hovering one chart shows the tooltip of the same bucket in the others
 const SYNC_ID = "balancing-costs"
+
+// chart height by the number of charts shown
+const HEIGHTS = ["32rem", "22rem", "18rem"]
 import { fetchMeta, fetchTimeseries, type CostFilters, type Meta } from "@/lib/api"
 
 export function BalancingCostsPage() {
@@ -70,6 +74,9 @@ function BalancingCosts({ meta }: { meta: Meta }) {
   let revenue = 0
   let bought = 0
   let sold = 0
+  let unfavourable = 0
+  let favourable = 0
+  let referenceComplete = true
   for (const bucket of buckets) {
     for (const s of series) {
       const value = bucket.values[s.key] ?? 0
@@ -78,13 +85,18 @@ function BalancingCosts({ meta }: { meta: Meta }) {
       const quantity = bucket.quantities[s.key] ?? 0
       if (quantity > 0) bought += quantity
       else sold += quantity
+      const excess = bucket.excess[s.key] ?? 0
+      if (excess > 0) unfavourable += excess
+      else favourable += excess
     }
+    if (!bucket.reference_complete) referenceComplete = false
   }
 
   // both charts on one scale: a bar of q MWh is as high as one of
   // q x average price EUR, so the height difference shows the price level
   const showCost = charts.includes("cost")
   const showQuantity = charts.includes("quantity")
+  const showExcess = charts.includes("excess")
   const price = averagePrice(buckets, series)
   let costAxis: Axis | undefined
   let quantityAxis: Axis | undefined
@@ -94,7 +106,7 @@ function BalancingCosts({ meta }: { meta: Meta }) {
     costAxis = niceAxis(Math.min(costMin, qMin * price), Math.max(costMax, qMax * price))
     quantityAxis = scaledAxis(costAxis, price)
   }
-  const height = showCost && showQuantity ? "22rem" : "32rem"
+  const height = HEIGHTS[charts.length - 1]
 
   return (
     <>
@@ -149,6 +161,32 @@ function BalancingCosts({ meta }: { meta: Meta }) {
                 series={series}
                 colors={colors}
                 axis={quantityAxis}
+                height={height}
+                syncId={SYNC_ID}
+              />
+            </>
+          )}
+          {showExcess && (
+            <>
+              <div className="mt-4 mb-2 flex flex-wrap gap-x-6 text-sm">
+                <span>
+                  Mehrkosten ggü. Referenz: <b>{formatEur(unfavourable)}</b>
+                </span>
+                <span>Einsparungen: <b>{formatEur(Math.abs(favourable))}</b></span>
+                <span>
+                  Saldo: <b>{formatEur(unfavourable + favourable)}</b>
+                  {!referenceComplete && " *"}
+                </span>
+                <span className="text-muted-foreground">
+                  Referenz: VTP-Tagesdurchschnittspreis
+                  {!referenceComplete && " · * ohne den laufenden Gastag"}
+                </span>
+              </div>
+              <ExcessChart
+                filters={timeseries.data.filters}
+                buckets={buckets}
+                series={series}
+                colors={colors}
                 height={height}
                 syncId={SYNC_ID}
               />
