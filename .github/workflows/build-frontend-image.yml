@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - frontend/**
-      - .github/workflows/build-image.yml
+      - .github/workflows/build-frontend-image.yml
 
 env:
   REGISTRY: ghcr.io
@@ -55,38 +55,33 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
+      # ktest-argocd: apps/ktest-frontend (own ArgoCD Application per
+      # overlay); the base (ktest-gitops) names the image "ktest-frontend"
       - name: Update GitOps Repository
         env:
           GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
-          # Holt die kurze Commit-SHA (z.B. sha-a1b2c3d) aus den Meta-Outputs
+          # short commit SHA tag (e.g. sha-a1b2c3d) from the meta outputs
           IMAGE_TAG: ${{ steps.meta.outputs.version }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          # GitOps Repo klonen
-          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/chrismich-k/ktest-argocd.git gitops
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/chrismich-k/ktest-argocd.git gitops
           cd gitops
 
-          # Voller Image-Pfad ohne Tag (wichtig für Kustomize)
           FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          (cd apps/ktest-frontend/overlays/staging \
+            && kustomize edit set image "ktest-frontend=${FULL_IMAGE_NAME}:${IMAGE_TAG}")
 
-          # 1. Dev-Overlay patchen
-          cd apps/ktest-app/overlays/dev01
-          kustomize edit set image ${FULL_IMAGE_NAME}:${IMAGE_TAG}
-
-          # 2. Staging-Overlay patchen (falls Staging zeitgleich mitrollen soll)
-          cd ../staging
-          kustomize edit set image ${FULL_IMAGE_NAME}:${IMAGE_TAG}
-
-          # Zurück ins Root-Verzeichnis des Repos für den Git-Commit
-          cd ../../../..
-
-          # Prüfen ob sich überhaupt was geändert hat (verhindert leere Commits)
-          if ! git diff --quiet; then
-            git add .
-            git commit -m "chore(gitops): update ktest-app image to ${IMAGE_TAG} [skip ci]"
-            git push origin main
-          else
-            echo "Keine Änderungen am Image-Tag festgestellt."
+          if git diff --quiet; then
+            echo "Image tag unchanged."
+            exit 0
           fi
+          git add apps/ktest-frontend/overlays
+          git commit -m "chore(gitops): update ktest-frontend image to ${IMAGE_TAG} [skip ci]"
+          # the API workflow may push to the same repo at the same time
+          for attempt in 1 2 3; do
+            git push origin main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1
