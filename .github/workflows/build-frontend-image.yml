@@ -55,8 +55,9 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      # ktest-argocd: apps/ktest-frontend (own ArgoCD Application per
-      # overlay); the base (ktest-gitops) names the image "ktest-frontend"
+      # ktest-argocd: clusters/hetzner-ktest-juno/ktest-staging/ktest-frontend
+      # (own ArgoCD Application); the base (ktest-gitops) names the image
+      # "ktest-frontend"
       - name: Update GitOps Repository
         env:
           GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
@@ -70,14 +71,14 @@ jobs:
           cd gitops
 
           FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          (cd apps/ktest-frontend/overlays/staging \
+          (cd clusters/hetzner-ktest-juno/ktest-staging/ktest-frontend \
             && kustomize edit set image "ktest-frontend=${FULL_IMAGE_NAME}:${IMAGE_TAG}")
 
           if git diff --quiet; then
             echo "Image tag unchanged."
             exit 0
           fi
-          git add apps/ktest-frontend/overlays
+          git add clusters/hetzner-ktest-juno/ktest-staging/ktest-frontend
           git commit -m "chore(gitops): update ktest-frontend image to ${IMAGE_TAG} [skip ci]"
           # the API workflow may push to the same repo at the same time
           for attempt in 1 2 3; do
