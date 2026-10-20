@@ -1,0 +1,15 @@
+node_modules
+dist
+.tanstack
+.env
+.env.*
+!.env.example
+*.local
+*.log
+.git
+.vscode
+.idea
+.DS_Store
+Dockerfile
+.dockerignore
+README.md
