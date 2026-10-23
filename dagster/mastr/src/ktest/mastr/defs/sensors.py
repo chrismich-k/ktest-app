@@ -30,7 +30,11 @@ mastr_refresh_job = dg.define_asset_job(
 def mastr_archive_sensor(
     context: dg.SensorEvaluationContext,
 ) -> dg.SensorResult:
-    client = context.resources.mastr_raw_s3.get_client()
+    # S3Resource implements IAttachDifferentObjectToOpContext, so accessing
+    # it via required_resource_keys (as opposed to a typed resource param)
+    # already gives the constructed boto3 client, not the S3Resource
+    # wrapper - calling .get_client() again here would fail.
+    client = context.resources.mastr_raw_s3
     available = set(
         archive.discover_available_stichtage(client, RAW_BUCKET, RAW_PREFIX)
     )
