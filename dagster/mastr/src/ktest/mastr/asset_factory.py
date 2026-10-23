@@ -51,7 +51,11 @@ def build_raw_archive_asset(
     )
     def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
         stichtag = context.partition_key
-        client = context.resources.mastr_raw_s3.get_client()
+        # S3Resource implements IAttachDifferentObjectToOpContext, so
+        # accessing it via required_resource_keys already gives the
+        # constructed boto3 client, not the S3Resource wrapper - see
+        # defs/sensors.py for the same pattern.
+        client = context.resources.mastr_raw_s3
 
         archive_key = archive.discover_archive_key(
             client, RAW_BUCKET, RAW_PREFIX, stichtag
