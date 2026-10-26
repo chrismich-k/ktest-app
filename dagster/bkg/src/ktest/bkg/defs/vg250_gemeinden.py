@@ -31,14 +31,14 @@ RAW_PREFIX = os.environ["BKG_RAW_S3_PREFIX"]
     key=VG250_GEMEINDEN,
     description=(
         "BKG VG250 Gemeinde boundaries (vg250_gem layer), raw - AGS/GEN/ARS"
-        "/BEZ plus the untouched polygon geometry (column 'geom', WKB,"
+        "/BEZ/GF plus the untouched polygon geometry (column 'geom', WKB,"
         " EPSG:25832/UTM32N - verified directly: pyogrio emits real ISO WKB"
         " here, not the GeoPackage-specific binary wrapper the source file"
         " itself uses internally). Centroid computation and WGS84"
-        " reprojection are a dbt model in dataware, not done here. Natural"
-        " key: AGS, unique only within a single stichtag (full re-export"
-        " each year) - unique across the whole table only as"
-        " (AGS, stichtag)."
+        " reprojection are a dbt model in dataware, not done here. One row"
+        " per Gemeinde and Geofaktor GF (4 = land, 2 = water parts such as"
+        " coastal waters or Bodensee), so the natural key is (AGS, GF),"
+        " unique only within a single stichtag (full re-export each year)."
     ),
     group_name="bkg",
     kinds={"iceberg"},
@@ -47,6 +47,9 @@ RAW_PREFIX = os.environ["BKG_RAW_S3_PREFIX"]
         "partition_expr": PARTITION_COLUMN,
         "table_properties": {},
         "write_mode": "overwrite",
+        # GF was added after the first import; lets the overwrite add the
+        # column to the existing table instead of failing.
+        "schema_update_mode": "update",
     },
     # Global pool, limit=1, configured externally at the Dagster
     # instance/deployment level - prevents Iceberg commit conflicts, same
@@ -78,9 +81,14 @@ def vg250_gemeinden(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             _, table = pyogrio.raw.read_arrow(
                 tmp.name,
                 layer=GEM_LAYER,
-                columns=["AGS", "GEN", "ARS", "BEZ"],
+                columns=["AGS", "GEN", "ARS", "BEZ", "GF"],
             )
 
+    # Iceberg has no int16 (GDAL's type for GF)
+    gf_index = table.schema.get_field_index("GF")
+    table = table.set_column(
+        gf_index, "GF", table.column(gf_index).cast(pa.int32())
+    )
     table = table.append_column(
         PARTITION_COLUMN,
         pa.array([stichtag] * table.num_rows, type=pa.string()),
