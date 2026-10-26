@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_bkg__vg250_gemeinden
+    description: >
+      Gemeinde boundaries of BKG VG250, one row per Gemeinde, Geofaktor and
+      stichtag (yearly full export). `geometry` is a Trino geometry in the
+      source CRS (`srid`, EPSG:25832 = UTM zone 32N).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ags, geofaktor, stichtag]
+    columns:
+      - name: ags
+        description: Amtlicher Gemeindeschlüssel (8 digits).
+        data_tests:
+          - not_null
+      - name: geofaktor
+        description: >
+          VG250 Geofaktor: 4 = land, 2 = water part of the Gemeinde (e.g.
+          coastal waters, Bodensee); 1 and 3 are the same without
+          structure and not expected for Gemeinden.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [2, 4]
+                quote: false
+      - name: stichtag
+        data_tests:
+          - not_null
+      - name: srid
+        description: >
+          EPSG code of `geometry`; dim_gemeinde converts it to WGS84 with a
+          hard-coded UTM zone 32, so any other value has to fail the build.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [25832]
+                quote: false
+      - name: geometry
+        data_tests:
+          - not_null

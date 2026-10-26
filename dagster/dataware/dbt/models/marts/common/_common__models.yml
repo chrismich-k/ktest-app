@@ -15,3 +15,38 @@ models:
           - not_null
       - name: gas_year
         description: Gas year label, e.g. 2025/26 (Oct 1 - Sep 30).
+
+  - name: dim_gemeinde
+    description: >
+      German Gemeinden of the latest BKG VG250 stichtag, one row per
+      Gemeinde, with the centroid of its land area in WGS84 (EPSG:4326;
+      ETRS89 from the source, the difference is well under a metre).
+      Joins MaStR units via gemeindeschluessel = ags.
+    columns:
+      - name: gemeinde_key
+        data_tests:
+          - unique
+          - not_null
+      - name: ags
+        description: Amtlicher Gemeindeschlüssel (8 digits).
+        data_tests:
+          - unique
+          - not_null
+      - name: stichtag
+        description: VG250 reference date the boundaries are valid for.
+      - name: centroid_lon
+        description: Longitude of the centroid, WGS84 degrees.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 5.8
+                max_value: 15.1
+      - name: centroid_lat
+        description: Latitude of the centroid, WGS84 degrees.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 47.2
+                max_value: 55.1

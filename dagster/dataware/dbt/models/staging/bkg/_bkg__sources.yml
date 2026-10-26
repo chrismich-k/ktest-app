@@ -1,0 +1,39 @@
+version: 2
+
+sources:
+  - name: bkg
+    description: >
+      Raw BKG VG250 administrative boundaries, written as Iceberg tables by
+      the `bkg` Dagster code location (asset keys `bkg/<table>`).
+    database: "{{ env_var('DATAWARE_TRINO_CATALOG') }}"
+    schema: "{{ env_var('DATAWARE_BKG_SCHEMA') }}"
+    tables:
+      - name: vg250_gemeinden
+        meta:
+          dagster:
+            asset_key: ["bkg", "vg250_gemeinden"]
+        description: >
+          Gemeinde boundaries (VG250 layer vg250_gem), one full export per
+          `stichtag`, one row per Gemeinde and Geofaktor `gf` (land and
+          water parts are separate rows). `geom` is plain WKB without an
+          embedded SRID; the CRS is in `srid` (EPSG:25832).
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [ags, gf, stichtag]
+        columns:
+          - name: ags
+            data_tests:
+              - not_null
+          - name: gf
+            data_tests:
+              - not_null
+          - name: stichtag
+            data_tests:
+              - not_null
+          - name: geom
+            data_tests:
+              - not_null
+          - name: srid
+            data_tests:
+              - not_null
