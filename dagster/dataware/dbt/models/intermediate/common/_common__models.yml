@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: int_plz_gemeinde_intersections
+    description: >
+      Every overlap with positive area of a postcode area (latest OSM
+      release) and a Gemeinde (latest VG250 stichtag), including slivers
+      from boundaries that don't line up exactly.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [plz, ags]
+    columns:
+      - name: share_of_plz
+        description: Overlap area / postcode area.
+      - name: share_of_gemeinde
+        description: Overlap area / Gemeinde area.
+      - name: intersection_wkb
+        description: Overlap geometry as WKB, WGS84.

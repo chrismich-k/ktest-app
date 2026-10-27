@@ -50,3 +50,57 @@ models:
               arguments:
                 min_value: 47.2
                 max_value: 55.1
+
+  - name: dim_plz_gemeinde
+    description: >
+      Combinations of postcode area (latest OSM release) and Gemeinde
+      (latest VG250 stichtag), one row per (plz, ags), with the centroid of
+      their shared area in WGS84. Slivers below the dbt var
+      plz_gemeinde_min_share are left out. Postcode areas © OpenStreetMap
+      contributors (ODbL).
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [plz, ags]
+    columns:
+      - name: plz_gemeinde_key
+        data_tests:
+          - unique
+          - not_null
+      - name: plz
+        data_tests:
+          - not_null
+      - name: ags
+        description: Amtlicher Gemeindeschlüssel, joins dim_gemeinde.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_gemeinde')
+                field: ags
+      - name: share_of_plz
+        description: Shared area / postcode area.
+      - name: share_of_gemeinde
+        description: Shared area / Gemeinde land area.
+      - name: area_km2
+        description: Shared area in km² (on the sphere).
+      - name: centroid_lon
+        description: Longitude of the centroid of the shared area, WGS84.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 5.8
+                max_value: 15.1
+      - name: centroid_lat
+        description: Latitude of the centroid of the shared area, WGS84.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 47.2
+                max_value: 55.1
+      - name: centroid_within_area
+        description: >
+          Whether the centroid lies inside the shared area; false for
+          U-shaped or multi-part areas.

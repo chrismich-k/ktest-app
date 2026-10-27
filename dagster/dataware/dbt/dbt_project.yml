@@ -33,6 +33,12 @@ models:
       +materialized: view
       +schema: api
 
+vars:
+  # dim_plz_gemeinde: minimum overlap share (of postcode area or Gemeinde)
+  # to count as a real combination; at 1 %, 0.13 % of MaStR solar units'
+  # PLZ/Gemeinde combinations were dropped (2026-10 data)
+  plz_gemeinde_min_share: 0.01
+
 seeds:
   dataware:
     +schema: seeds

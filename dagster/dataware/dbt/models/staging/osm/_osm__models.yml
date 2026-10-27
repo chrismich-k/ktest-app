@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_osm__postleitzahlen
+    description: >
+      OSM postcode areas, one row per OSM relation and release. `geometry`
+      is a Trino geometry in WGS84, the repaired one where the delivered
+      geometry is invalid.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [osm_relation_id, release]
+    columns:
+      - name: plz
+        description: >
+          Postcode as published; older releases contain a few foreign ones
+          (e.g. Austrian 6993 for Mittelberg in 2025.12).
+        data_tests:
+          - not_null
+      - name: is_geometry_repaired
+        description: Whether `geometry` is the repaired one.
+      - name: srid
+        description: EPSG code of `geometry`, expected to be WGS84.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [4326]
+                quote: false

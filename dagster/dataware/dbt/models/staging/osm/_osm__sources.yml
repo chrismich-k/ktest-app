@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: osm
+    description: >
+      Raw OpenStreetMap data, written as Iceberg tables by the `osm` Dagster
+      code location (asset keys `osm/<table>`). License ODbL-1.0,
+      attribution "© OpenStreetMap contributors".
+    database: "{{ env_var('DATAWARE_TRINO_CATALOG') }}"
+    schema: "{{ env_var('DATAWARE_OSM_SCHEMA') }}"
+    tables:
+      - name: postleitzahlen
+        meta:
+          dagster:
+            asset_key: ["osm", "postleitzahlen"]
+        description: >
+          German postcode areas (boundary=postal_code relations) as
+          published by github.com/yetzt/postleitzahlen, one full set per
+          `release`. One row per OSM relation; a postcode can span several
+          relations. A few geometries are invalid as delivered (broken by
+          yetzt's rounding and ring assembly); `wkb_geometry_repaired` holds
+          the repaired one for exactly those.
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [rel, release]
+          # YYYY.MM, so that max(release) is the latest one
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "regexp_like(release, '^\\d{4}\\.\\d{2}$')"
+        columns:
+          - name: postcode
+            data_tests:
+              - not_null
+          - name: rel
+            data_tests:
+              - not_null
+          - name: release
+            description: Release tag, YYYY.MM (sorts chronologically as text).
+            data_tests:
+              - not_null
+          - name: wkb_geometry
+            data_tests:
+              - not_null
+          - name: wkb_geometry_repaired
+            description: >
+              make_valid() result (polygonal parts only) where wkb_geometry
+              is invalid, otherwise null. Null for all rows of releases
+              imported before the column existed.
+          - name: srid
+            data_tests:
+              - not_null

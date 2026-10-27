@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: int_bkg__gemeinden_wgs84
+    description: >
+      Land areas (Geofaktor 4) of the Gemeinden of the latest VG250
+      stichtag, one row per Gemeinde, geometry as WKB in WGS84.
+    columns:
+      - name: ags
+        data_tests:
+          - unique
+          - not_null
+      - name: geometry_wkb
+        data_tests:
+          - not_null

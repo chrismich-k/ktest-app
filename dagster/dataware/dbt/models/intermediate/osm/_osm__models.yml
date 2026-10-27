@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: int_osm__postleitzahlen
+    description: >
+      Postcode areas of the latest OSM release, one row per postcode
+      (geometry as WKB, WGS84).
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "regexp_like(plz, '^\\d{5}$')"
+      # invalid geometries make st_intersection unreliable; they have to be
+      # repaired in the osm import (wkb_geometry_repaired)
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "st_isvalid(st_geomfrombinary(geometry_wkb))"
+    columns:
+      - name: plz
+        data_tests:
+          - unique
+          - not_null
+      - name: osm_relation_count
+        description: Number of OSM relations merged into the geometry.
+      - name: is_geometry_repaired
+        description: Whether a repaired geometry was used for the postcode.

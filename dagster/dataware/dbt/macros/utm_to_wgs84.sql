@@ -48,3 +48,20 @@
         "lat": "degrees(" ~ lat | join("") ~ "))",
     }) }}
 {% endmacro %}
+
+
+{#
+  Whole geometry (any type) from UTM to WGS84: every coordinate pair of its
+  WKT is replaced by utm_to_wgs84(), so rings, holes and parts stay as they
+  are. UTM coordinates are never negative, which the pattern relies on.
+#}
+{% macro utm_geometry_to_wgs84(geometry, zone) %}
+    {%- set point = utm_to_wgs84(
+        "cast(xy[1] as double)", "cast(xy[2] as double)", zone
+    ) -%}
+    st_setsrid(st_geometryfromtext(regexp_replace(
+        st_astext({{ geometry }}),
+        '(\d+(?:\.\d+)?) (\d+(?:\.\d+)?)',
+        xy -> format('%.7f %.7f', {{ point.lon }}, {{ point.lat }})
+    )), 4326)
+{%- endmacro %}
