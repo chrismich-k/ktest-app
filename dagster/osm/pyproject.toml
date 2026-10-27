@@ -2,9 +2,12 @@
 name = "ktest-osm"
 requires-python = ">=3.11,<3.15"
 version = "0.1.0"
+# dagster-aws is needed even without S3 resources: the run pods use this
+# image and the instance's S3ComputeLogManager.
 dependencies = [
     "brotli>=1.1",
     "dagster==1.13.24",
+    "dagster-aws>=0.29.24",
     "dagster-iceberg>=0.3.14",
     "dagster-postgres>=0.29.24",
     "httpx>=0.28.1",
