@@ -1,8 +1,10 @@
 import tempfile
 
 import dagster as dg
+import numpy as np
 import pyarrow as pa
 import pyogrio
+import shapely
 
 from ktest.osm import postleitzahlen_releases
 from ktest.osm.asset_keys import POSTLEITZAHLEN
@@ -20,8 +22,11 @@ SRID = 4326
         " postcode, OSM relation id `rel` and the polygon geometry"
         " (`wkb_geometry`, WKB, EPSG:4326). License ODbL-1.0, attribution"
         " '© OpenStreetMap contributors'. Natural key: rel, unique only per"
-        " release; a postcode can span several relations (e.g. 75378), and"
-        " some geometries are invalid (self-intersections) as delivered."
+        " release; a postcode can span several relations (e.g. 75378)."
+        " A few geometries are invalid as delivered, as yetzt's rounding to"
+        " 6 decimals and ring assembly break areas that are valid in OSM;"
+        " for those only, `wkb_geometry_repaired` holds the geometry"
+        " repaired with shapely's make_valid (polygonal parts only)."
     ),
     group_name="osm",
     kinds={"iceberg"},
@@ -30,6 +35,9 @@ SRID = 4326
         "partition_expr": PARTITION_COLUMN,
         "table_properties": {},
         "write_mode": "overwrite",
+        # wkb_geometry_repaired was added after the first imports; lets the
+        # overwrite add the column to the existing table instead of failing
+        "schema_update_mode": "update",
     },
     pool="osm_iceberg_writes",
 )
@@ -51,11 +59,31 @@ def postleitzahlen(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
     table = table.append_column(
         "srid", pa.array([SRID] * table.num_rows, type=pa.int32())
     )
+    repaired = _repair_invalid(table.column("wkb_geometry"))
+    table = table.append_column("wkb_geometry_repaired", repaired)
 
     return dg.MaterializeResult(
         value=table,
-        metadata={"row_count": table.num_rows},
+        metadata={
+            "row_count": table.num_rows,
+            "repaired_geometries": table.num_rows - repaired.null_count,
+        },
     )
+
+
+def _repair_invalid(wkb: pa.ChunkedArray) -> pa.Array:
+    """make_valid() result for invalid geometries, null for valid ones.
+    Collapsed parts (e.g. a spike reduced to a line) are dropped, so the
+    result stays a (Multi)Polygon."""
+    geometries = shapely.from_wkb(wkb.to_numpy(zero_copy_only=False))
+    invalid = ~shapely.is_valid(geometries)
+    repaired = np.full(len(geometries), None, dtype=object)
+    repaired[invalid] = shapely.to_wkb(
+        shapely.make_valid(
+            geometries[invalid], method="structure", keep_collapsed=False
+        )
+    )
+    return pa.array(repaired, type=pa.binary())
 
 
 @dg.op(
