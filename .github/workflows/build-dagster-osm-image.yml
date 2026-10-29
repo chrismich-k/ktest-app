@@ -18,6 +18,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - name: Checkout repository
@@ -43,6 +45,7 @@ jobs:
             type=sha,format=short,priority=900
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./dagster/osm
@@ -86,3 +89,29 @@ jobs:
             git pull --rebase origin main
           done
           exit 1
+
+  # separate job: the scanner gets neither GITOPS_TOKEN nor packages: write;
+  # report only, findings go to the repository's Security tab
+  scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Scan image with Trivy
+        # pinned by commit SHA: the trivy-action tags were hijacked in 2026-03
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+          version: v0.75.0
+          scanners: vuln
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload results to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy-results.sarif
+          category: dagster-osm-image
