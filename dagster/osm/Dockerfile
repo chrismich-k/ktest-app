@@ -9,6 +9,9 @@ COPY src/ ./src/
 RUN uv sync --frozen --no-dev
 
 FROM python:3.13-slim-trixie
+# pip is not needed at runtime (the venv comes from uv) and vendors outdated
+# libraries that scanners flag
+RUN python -m pip uninstall --yes --root-user-action=ignore pip
 WORKDIR /app
 COPY --from=builder /app/.venv ./.venv
 COPY --from=builder /app/src ./src
