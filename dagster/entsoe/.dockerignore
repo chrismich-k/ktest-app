@@ -1,0 +1,10 @@
+.venv
+.env
+.env.*
+!.env.example
+.git
+.dg
+tests
+__pycache__
+*.pyc
+.tmp_dagster_home_*

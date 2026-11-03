@@ -1,0 +1,117 @@
+name: Build and Push Dagster entsoe Code Location Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - dagster/entsoe/**
+      - .github/workflows/build-dagster-entsoe-image.yml
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/dagster-entsoe
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short,priority=900
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dagster/entsoe
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      # ktest-argocd: clusters/hetzner-ktest-juno/dagster/entsoe (own ArgoCD
+      # Application); the base (ktest-gitops) names the image
+      # "dagster-code-location"
+      - name: Update GitOps Repository
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+          # short commit SHA tag (e.g. sha-a1b2c3d) from the meta outputs
+          IMAGE_TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/chrismich-k/ktest-argocd.git gitops
+          cd gitops
+
+          FULL_IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          (cd clusters/hetzner-ktest-juno/dagster/entsoe \
+            && kustomize edit set image "dagster-code-location=${FULL_IMAGE_NAME}:${IMAGE_TAG}")
+
+          if git diff --quiet; then
+            echo "Image tag unchanged."
+            exit 0
+          fi
+          git add clusters/hetzner-ktest-juno/dagster/entsoe
+          git commit -m "chore(gitops): update dagster-entsoe image to ${IMAGE_TAG} [skip ci]"
+          # other build workflows may push to the same repo at the same time
+          for attempt in 1 2 3; do
+            git push origin main && exit 0
+            git pull --rebase origin main
+          done
+          exit 1
+
+  # separate job: the scanner gets neither GITOPS_TOKEN nor packages: write;
+  # report only, findings go to the repository's Security tab
+  scan:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Scan image with Trivy
+        # pinned by commit SHA: the trivy-action tags were hijacked in 2026-03
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}
+          version: v0.75.0
+          scanners: vuln
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: Upload results to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: trivy-results.sarif
+          category: dagster-entsoe-image

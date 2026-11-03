@@ -1,0 +1,31 @@
+type: ktest.entsoe.components.entsoe_component.EntsoeComponent
+
+attributes:
+  document_type: A44
+  start_date: "2024-01-01"
+  # tomorrow's prices are published around 13:00
+  end_offset: 2
+  refresh_cron: "30 14 * * *"
+  refresh_lookback_days: 7
+  # DE-LU and its neighbouring bidding zones
+  zones:
+    - { name: DE-LU, eic: 10Y1001A1001A82H }
+    - { name: AT, eic: 10YAT-APG------L }
+    - { name: BE, eic: 10YBE----------2 }
+    - { name: CH, eic: 10YCH-SWISSGRIDZ }
+    - { name: CZ, eic: 10YCZ-CEPS-----N }
+    - { name: DK1, eic: 10YDK-1--------W }
+    - { name: DK2, eic: 10YDK-2--------M }
+    - { name: FR, eic: 10YFR-RTE------C }
+    - { name: NL, eic: 10YNL----------L }
+    - { name: NO2, eic: 10YNO-2--------T }
+    - { name: PL, eic: 10YPL-AREA-----S }
+    - { name: SE4, eic: 10Y1001A1001A47J }
+  spec:
+    key: entsoe/day_ahead_prices
+    description: >
+      ENTSO-E day-ahead prices (A44) of DE-LU and its neighbouring bidding
+      zones, one row per delivered point. Natural key: (ts, bidding_zone,
+      contract_type, sequence, resolution).
+    group_name: entsoe
+    kinds: ["iceberg"]
