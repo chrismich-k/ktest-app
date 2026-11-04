@@ -2,7 +2,7 @@
 
 dagster-iceberg derives the table's partition spec from the length of the
 Dagster partition window (daily partitions -> day(gas_day)), which would mean
-one Iceberg partition with ~140 rows per gas day here. Writing directly
+one Iceberg partition with 40-140 rows per gas day here. Writing directly
 keeps daily Dagster partitions on a table partitioned by year(gas_day).
 """
 

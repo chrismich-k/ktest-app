@@ -1,0 +1,20 @@
+type: ktest.gie.components.gie_component.GieComponent
+
+attributes:
+  dataset: alsi
+  # ALSI publishes historical data from 2012 on
+  start_date: "2012-01-01"
+  end_offset: 0
+  # a gas day is published in the evening after it ended, corrections
+  # follow later; after the AGSI refresh, which runs in the same pool
+  refresh_cron: "30 21 * * *"
+  refresh_lookback_days: 14
+  spec:
+    key: gie/alsi_lng
+    description: >
+      GIE ALSI LNG terminals, one row per terminal and gas day, all
+      countries on the platform. Natural key: (gas_day, country_code,
+      company_eic, facility_eic); GB (eu) and GB* (ne) list the same
+      terminals, and ai/ES* is a virtual balancing tank, not a terminal.
+    group_name: gie
+    kinds: ["iceberg"]

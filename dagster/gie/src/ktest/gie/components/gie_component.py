@@ -72,7 +72,7 @@ class GieComponent(dg.Component, dg.Model, dg.Resolvable):
     partitions, which picks up late publications and corrections.
     """
 
-    dataset: Literal["agsi"]
+    dataset: Literal["agsi", "alsi"]
     start_date: str
     # partitions beyond the last complete day (yesterday); 0 for gas
     # storage, which is published after the gas day

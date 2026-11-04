@@ -2,7 +2,8 @@
 parser per dataset.
 
 A request for one gas day without further filters returns the whole
-platform as a tree: region (EU / Non-EU) > country > company > facility.
+platform as a tree: region (EU / Non-EU / Additional Information) >
+country > company > facility.
 Only the facilities are imported, one row per facility and gas day, with
 the codes and names of their parents; aggregates belong in dbt. Values are
 taken as delivered, except that the API's "-" for "no value" becomes null.
@@ -107,7 +108,7 @@ def _key_fields() -> list[pa.Field]:
     return [
         pa.field("gas_day", pa.date32(), nullable=False),
         pa.field("gas_day_end", pa.date32(), nullable=False),
-        # eu / ne (Non-EU)
+        # eu / ne (Non-EU) / ai (Additional Information, ALSI only)
         pa.field("region", pa.string(), nullable=False),
         # ISO code; GB* marks the post-Brexit view of the GB facilities,
         # which carry the same EICs
@@ -184,10 +185,61 @@ def _parse_agsi_facility(facility: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# --- ALSI: LNG terminals ----------------------------------------------------
+
+_ALSI_SCHEMA = pa.schema(
+    [
+        *_key_fields(),
+        # LAND land-based terminal, FSRU floating storage regasification unit
+        pa.field("facility_type", pa.string()),
+        pa.field("longitude", pa.float64()),
+        pa.field("latitude", pa.float64()),
+        # LNG in the tanks, end of gas day: 10^3 m3 LNG and GWh
+        pa.field("inventory_lng", pa.float64()),
+        pa.field("inventory_gwh", pa.float64()),
+        # GWh/d
+        pa.field("send_out", pa.float64()),
+        # declared total maximum inventory (storage capacity): 10^3 m3 LNG
+        # and GWh
+        pa.field("dtmi_lng", pa.float64()),
+        pa.field("dtmi_gwh", pa.float64()),
+        # declared total reference send-out (send-out capacity), GWh/d
+        pa.field("dtrs", pa.float64()),
+        # GWh/d
+        pa.field("contracted_capacity", pa.float64()),
+        pa.field("available_capacity", pa.float64()),
+        *_trailing_fields(),
+    ]
+)
+
+
+def _parse_alsi_facility(facility: dict[str, Any]) -> dict[str, Any]:
+    inventory = facility.get("inventory") or {}
+    dtmi = facility.get("dtmi") or {}
+    return {
+        "facility_type": _optional_string(facility.get("type")),
+        "longitude": _number(facility.get("longitude")),
+        "latitude": _number(facility.get("latitude")),
+        "inventory_lng": _number(inventory.get("lng")),
+        "inventory_gwh": _number(inventory.get("gwh")),
+        "send_out": _number(facility.get("sendOut")),
+        "dtmi_lng": _number(dtmi.get("lng")),
+        "dtmi_gwh": _number(dtmi.get("gwh")),
+        "dtrs": _number(facility.get("dtrs")),
+        "contracted_capacity": _number(facility.get("contractedCapacity")),
+        "available_capacity": _number(facility.get("availableCapacity")),
+    }
+
+
 DATASETS: dict[str, Dataset] = {
     "agsi": Dataset(
         host="agsi.gie.eu",
         schema=_AGSI_SCHEMA,
         parse_facility=_parse_agsi_facility,
+    ),
+    "alsi": Dataset(
+        host="alsi.gie.eu",
+        schema=_ALSI_SCHEMA,
+        parse_facility=_parse_alsi_facility,
     ),
 }
