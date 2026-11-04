@@ -11,6 +11,8 @@ exceeding it gets the account banned.
 import time
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 import dagster as dg
@@ -26,6 +28,14 @@ PAGE_SIZE = 300
 
 class GieApiError(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    data: list[dict[str, Any]]
+    # the platform's latest published gas day; a request for a later day
+    # returns this one instead
+    latest_gas_day: date
 
 
 class GieClient:
@@ -60,9 +70,7 @@ class GieClient:
             )
         raise AssertionError("unreachable")
 
-    def query(
-        self, host: str, params: Mapping[str, str]
-    ) -> list[dict[str, Any]]:
+    def query(self, host: str, params: Mapping[str, str]) -> QueryResult:
         """The `data` entries of all pages."""
         data: list[dict[str, Any]] = []
         page = 1
@@ -73,7 +81,10 @@ class GieClient:
             )
             data.extend(body["data"])
             if page >= int(body["last_page"]):
-                return data
+                return QueryResult(
+                    data=data,
+                    latest_gas_day=date.fromisoformat(body["gas_day"]),
+                )
             page += 1
 
 

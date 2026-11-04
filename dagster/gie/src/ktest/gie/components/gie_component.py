@@ -1,3 +1,4 @@
+import time
 from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 
@@ -11,7 +12,8 @@ from pyiceberg.expressions import (
     LessThan,
 )
 
-from ktest.gie.datasets import DATASETS, parse_day
+from ktest.gie.client import GieClient
+from ktest.gie.datasets import DATASETS, Dataset, ParsedDay, parse_day
 
 # gas days run 06:00 to 06:00 CET/CEST; the platforms publish a gas day in
 # the evening after it ended
@@ -20,6 +22,41 @@ TIMEZONE = "Europe/Brussels"
 # use); RunRequest has no parameter for it
 PARTITION_RANGE_START_TAG = "dagster/asset_partition_range_start"
 PARTITION_RANGE_END_TAG = "dagster/asset_partition_range_end"
+# the API occasionally returns a day's tree without facilities (seen once in
+# a run over a month, the same day was fine right after); retry such days
+EMPTY_DAY_ATTEMPTS = 3
+EMPTY_DAY_RETRY_SECONDS = 30
+
+
+def _fetch_day(
+    context: dg.AssetExecutionContext,
+    client: GieClient,
+    dataset: Dataset,
+    gas_day: date,
+    countries: list[str] | None,
+) -> ParsedDay | None:
+    """The facility rows of a gas day, None if it is not published yet."""
+    for attempt in range(1, EMPTY_DAY_ATTEMPTS + 1):
+        result = client.query(dataset.host, {"date": gas_day.isoformat()})
+        if gas_day > result.latest_gas_day:
+            return None
+        parsed = parse_day(dataset, result.data, gas_day, countries)
+        # the tree always lists the facilities, with "-" if they have no
+        # data; an empty day means a broken response and must not replace
+        # stored data
+        if parsed.rows:
+            return parsed
+        nodes = [
+            (node.get("code"), len(node.get("children") or []))
+            for node in result.data
+        ]
+        context.log.warning(
+            f"{gas_day}: no facilities in the response (top-level nodes"
+            f" and their child counts: {nodes}), attempt {attempt}"
+        )
+        if attempt < EMPTY_DAY_ATTEMPTS:
+            time.sleep(EMPTY_DAY_RETRY_SECONDS)
+    raise ValueError(f"no facilities for {gas_day}")
 
 
 class GieComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -86,22 +123,27 @@ class GieComponent(dg.Component, dg.Model, dg.Resolvable):
             with context.resources.gie_api.client() as client:
                 gas_day = first_day
                 while gas_day <= last_day:
-                    data = client.query(
-                        dataset.host, {"date": gas_day.isoformat()}
+                    parsed = _fetch_day(
+                        context, client, dataset, gas_day, countries
                     )
-                    parsed = parse_day(dataset, data, gas_day, countries)
-                    # the tree always lists the facilities, with "-" if
-                    # they have no data; an empty day means a broken
-                    # response and must not replace stored data
-                    if not parsed.rows:
-                        raise ValueError(f"no facilities for {gas_day}")
+                    if parsed is None:
+                        break
                     for row in parsed.rows:
                         row["fetched_at"] = fetched_at
                     rows.extend(parsed.rows)
                     skipped_without_code += parsed.skipped_without_code
                     gas_day += timedelta(days=1)
 
-            end_day = last_day + timedelta(days=1)
+            # a gas day is published in the evening after it ended; days of
+            # the range not published yet are left as they are (the next
+            # refresh picks them up)
+            end_day = gas_day
+            if end_day == first_day:
+                raise dg.Failure(f"gas day {first_day} is not published yet")
+            if end_day <= last_day:
+                context.log.info(
+                    f"not published yet: {end_day}..{last_day}, skipped"
+                )
             overwrite_filter: BooleanExpression = And(
                 GreaterThanOrEqual(
                     term="gas_day", value=first_day.isoformat()
@@ -127,7 +169,8 @@ class GieComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(
                 metadata={
                     "row_count": table.num_rows,
-                    "day_count": (last_day - first_day).days + 1,
+                    "day_count": (end_day - first_day).days,
+                    "unpublished_day_count": (last_day - end_day).days + 1,
                     "skipped_without_code": skipped_without_code,
                 }
             )
