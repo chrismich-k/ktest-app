@@ -12,7 +12,7 @@ from pyiceberg.expressions import (
     LessThan,
 )
 
-from ktest.gie.client import GieClient
+from ktest.gie.client import GieClient, IncompleteResponseError
 from ktest.gie.datasets import DATASETS, Dataset, ParsedDay, parse_day
 
 # gas days run 06:00 to 06:00 CET/CEST; the platforms publish a gas day in
@@ -22,10 +22,11 @@ TIMEZONE = "Europe/Brussels"
 # use); RunRequest has no parameter for it
 PARTITION_RANGE_START_TAG = "dagster/asset_partition_range_start"
 PARTITION_RANGE_END_TAG = "dagster/asset_partition_range_end"
-# the API occasionally returns a day's tree without facilities (seen once in
-# a run over a month, the same day was fine right after); retry such days
-EMPTY_DAY_ATTEMPTS = 3
-EMPTY_DAY_RETRY_SECONDS = 30
+# the API occasionally returns a day's tree without facilities or a response
+# without its top-level fields (seen in runs over a month, the same day was
+# fine right after); retry such days
+BROKEN_DAY_ATTEMPTS = 3
+BROKEN_DAY_RETRY_SECONDS = 30
 
 
 def _fetch_day(
@@ -36,27 +37,32 @@ def _fetch_day(
     countries: list[str] | None,
 ) -> ParsedDay | None:
     """The facility rows of a gas day, None if it is not published yet."""
-    for attempt in range(1, EMPTY_DAY_ATTEMPTS + 1):
-        result = client.query(dataset.host, {"date": gas_day.isoformat()})
-        if gas_day > result.latest_gas_day:
-            return None
-        parsed = parse_day(dataset, result.data, gas_day, countries)
-        # the tree always lists the facilities, with "-" if they have no
-        # data; an empty day means a broken response and must not replace
-        # stored data
-        if parsed.rows:
-            return parsed
-        nodes = [
-            (node.get("code"), len(node.get("children") or []))
-            for node in result.data
-        ]
-        context.log.warning(
-            f"{gas_day}: no facilities in the response (top-level nodes"
-            f" and their child counts: {nodes}), attempt {attempt}"
-        )
-        if attempt < EMPTY_DAY_ATTEMPTS:
-            time.sleep(EMPTY_DAY_RETRY_SECONDS)
-    raise ValueError(f"no facilities for {gas_day}")
+    for attempt in range(1, BROKEN_DAY_ATTEMPTS + 1):
+        try:
+            result = client.query(dataset.host, {"date": gas_day.isoformat()})
+        except IncompleteResponseError as e:
+            problem = str(e)
+        else:
+            if gas_day > result.latest_gas_day:
+                return None
+            parsed = parse_day(dataset, result.data, gas_day, countries)
+            # the tree always lists the facilities, with "-" if they have
+            # no data; an empty day means a broken response and must not
+            # replace stored data
+            if parsed.rows:
+                return parsed
+            nodes = [
+                (node.get("code"), len(node.get("children") or []))
+                for node in result.data
+            ]
+            problem = (
+                "no facilities in the response (top-level nodes and their"
+                f" child counts: {nodes})"
+            )
+        context.log.warning(f"{gas_day}: {problem}, attempt {attempt}")
+        if attempt < BROKEN_DAY_ATTEMPTS:
+            time.sleep(BROKEN_DAY_RETRY_SECONDS)
+    raise ValueError(f"no usable response for {gas_day}: {problem}")
 
 
 class GieComponent(dg.Component, dg.Model, dg.Resolvable):

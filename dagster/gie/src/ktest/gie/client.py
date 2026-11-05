@@ -30,6 +30,11 @@ class GieApiError(Exception):
     pass
 
 
+class IncompleteResponseError(GieApiError):
+    """A response without the expected fields; seen occasionally, the same
+    request was fine right after."""
+
+
 @dataclass(frozen=True)
 class QueryResult:
     data: list[dict[str, Any]]
@@ -79,6 +84,12 @@ class GieClient:
                 f"https://{host}/api",
                 {**params, "page": str(page), "size": str(PAGE_SIZE)},
             )
+            missing = {"data", "last_page", "gas_day"} - body.keys()
+            if missing:
+                raise IncompleteResponseError(
+                    f"response without {sorted(missing)} (fields:"
+                    f" {sorted(body.keys())})"
+                )
             data.extend(body["data"])
             if page >= int(body["last_page"]):
                 return QueryResult(
