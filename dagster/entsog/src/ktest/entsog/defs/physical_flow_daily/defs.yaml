@@ -1,0 +1,21 @@
+type: ktest.entsog.components.operational_data_component.EntsogOperationalDataComponent
+
+attributes:
+  indicator: Physical Flow
+  # the API only has the last five years (rolling); older data is in the
+  # platform's archives
+  start_date: "2022-01-01"
+  # a gas day is mostly complete the next morning; confirmed values follow
+  # within weeks
+  refresh_cron: "0 10 * * *"
+  refresh_lookback_days: 31
+  spec:
+    key: entsog/physical_flow_daily
+    description: >
+      ENTSOG physical flows, daily values of all points and operators as
+      delivered (kWh/d), including the daily placeholder records of points
+      without data (is_na, value null). Natural key: (gas_day, operator_key,
+      point_key, direction_key); origin and destination of a point come
+      from entsog/interconnections.
+    group_name: entsog
+    kinds: ["iceberg"]

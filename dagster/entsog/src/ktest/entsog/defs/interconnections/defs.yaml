@@ -1,0 +1,16 @@
+type: ktest.entsog.components.snapshot_component.EntsogSnapshotComponent
+
+attributes:
+  endpoint: interconnections
+  fetch_hour: 7
+  spec:
+    key: entsog/interconnections
+    description: >
+      ENTSOG interconnections, daily snapshots of the master data (one
+      dynamic partition per snapshot date actually fetched): per
+      point, the systems on both sides (operator, country, balancing zone,
+      infrastructure type). Natural key: (snapshot_date, record_id). A flow
+      (operator_key, point_key, direction_key) matches the from side for
+      exits and the to side for entries.
+    group_name: entsog
+    kinds: ["iceberg"]
